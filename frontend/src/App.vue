@@ -17,8 +17,12 @@
         <div class="player-card black-card" :class="{ 'turn-active': gameState?.turn === 'b' }">
           <div class="player-icon black-solid-icon">卒</div>
           <div>
-            <p class="player-name">黑方（AI）</p>
-            <p class="player-sub">電腦對手</p>
+            <p class="player-name">
+              黑方 {{ (gameState?.humanCamp ?? selectedCamp) === Camp.BLACK ? '（玩家）' : '（AI）' }}
+            </p>
+            <p class="player-sub">
+              {{ (gameState?.humanCamp ?? selectedCamp) === Camp.BLACK ? '後手 · 操作中' : '電腦對手' }}
+            </p>
           </div>
           <div v-if="gameState?.turn === 'b' && !isGameOver" class="thinking-dots">
             <span/><span/><span/>
@@ -32,8 +36,12 @@
         <div class="player-card red-card" :class="{ 'turn-active': gameState?.turn === 'w' }">
           <div class="player-icon red-solid-icon">兵</div>
           <div>
-            <p class="player-name">紅方（玩家）</p>
-            <p class="player-sub">先手 · 操作中</p>
+            <p class="player-name">
+              紅方 {{ (gameState?.humanCamp ?? selectedCamp) === Camp.RED ? '（玩家）' : '（AI）' }}
+            </p>
+            <p class="player-sub">
+              {{ (gameState?.humanCamp ?? selectedCamp) === Camp.RED ? '先手 · 操作中' : '電腦對手' }}
+            </p>
           </div>
         </div>
 
@@ -41,7 +49,7 @@
         <div class="action-btns">
           <button
             class="btn btn-warning"
-            :disabled="!gameState || undoCount <= 0 || (gameState.turn !== 'w' && !isGameOver)"
+            :disabled="!gameState || undoCount <= 0 || (!gameState.isHumanTurn && !isGameOver)"
             @click="handleUndo"
           >
             悔棋 (剩餘 {{ undoCount }} 次)
@@ -262,11 +270,16 @@ const gameOverIcon = computed(() => {
 const statusText = computed(() => {
   if (!gameState.value) return '等待開始';
   switch (gameState.value.status) {
-    case GameStatus.WAITING: return '等待開始';
-    case GameStatus.PLAYING: return gameState.value.turn === Camp.RED ? '紅方回合' : 'AI 思考中...';
-    case GameStatus.CHECK: return gameState.value.turn === Camp.RED ? '⚠ 紅方被將！' : '⚠ 黑方被將！';
-    case GameStatus.CHECKMATE: return '將死！';
-    default: return '遊戲中';
+    case GameStatus.WAITING:
+      return '等待開始';
+    case GameStatus.PLAYING:
+      return gameState.value.isHumanTurn ? '您的回合' : 'AI 思考中...';
+    case GameStatus.CHECK:
+      return gameState.value.isHumanTurn ? '⚠ 您被將軍！' : '⚠ AI 被將軍！';
+    case GameStatus.CHECKMATE:
+      return '將死！';
+    default:
+      return '遊戲中';
   }
 });
 

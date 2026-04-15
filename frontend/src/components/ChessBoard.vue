@@ -39,25 +39,25 @@
 
       <!-- 交叉點選擇器/棋子容器 -->
       <div class="board-cells">
-        <template v-for="y in 10" :key="'row'+y">
+        <template v-for="yIdx in displayRows" :key="'row'+yIdx">
           <div
-            v-for="x in 9"
-            :key="`cell-${x-1}-${y-1}`"
+            v-for="xIdx in displayCols"
+            :key="`cell-${xIdx}-${yIdx}`"
             class="cell"
-            :class="cellClass(x - 1, y - 1)"
-            @click="onCellClick(x - 1, y - 1)"
+            :class="cellClass(xIdx, yIdx)"
+            @click="onCellClick(xIdx, yIdx)"
           >
             <!-- 落點指示 (僅點擊有效區) -->
             <div
-              v-if="isLegalTarget(x - 1, y - 1)"
+              v-if="isLegalTarget(xIdx, yIdx)"
               class="legal-dot"
-              :class="{ 'legal-capture': !!getCell(x - 1, y - 1) }"
+              :class="{ 'legal-capture': !!getCell(xIdx, yIdx) }"
             />
             <!-- 棋子 -->
             <ChessPiece
-              v-if="getCell(x - 1, y - 1)"
-              :piece="getCell(x - 1, y - 1)!"
-              :selected="isSelected(x - 1, y - 1)"
+              v-if="getCell(xIdx, yIdx)"
+              :piece="getCell(xIdx, yIdx)!"
+              :selected="isSelected(xIdx, yIdx)"
               class="piece-scale"
             />
           </div>
@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import ChessPiece from './ChessPiece.vue';
-import { Camp, getLegalMoves, parseFEN, INITIAL_FEN } from '@chinese-chess/shared';
+import { Camp, getLegalMoves } from '@chinese-chess/shared';
 import type { BoardState, Piece, Position } from '@chinese-chess/shared';
 
 
@@ -86,6 +86,18 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'move', from: Position, to: Position): void;
 }>();
+
+// ─── 翻轉顯示邏輯 ─────────────────────────────────────────────────────────
+
+const displayRows = computed(() => {
+  const rows = Array.from({ length: 10 }, (_, i) => i);
+  return props.flipped ? [...rows].reverse() : rows;
+});
+
+const displayCols = computed(() => {
+  const cols = Array.from({ length: 9 }, (_, i) => i);
+  return props.flipped ? [...cols].reverse() : cols;
+});
 
 // ─── 選子狀態 ─────────────────────────────────────────────────────────────
 
@@ -173,12 +185,9 @@ function selectPiece(x: number, y: number) {
     0 0 0 6px #7a5200,
     0 8px 40px rgba(0,0,0,0.7),
     0 2px 8px rgba(0,0,0,0.4);
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.board-wrap.is-flipped {
-  transform: rotate(180deg);
-}
+/* 移除整體的 CSS 旋轉，改由座標邏輯翻轉 */
 
 /* SVG 格線填滿容器 */
 .board-lines {
@@ -190,7 +199,7 @@ function selectPiece(x: number, y: number) {
 }
 
 .board-lines text {
-  transition: transform 0.6s;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: center;
 }
 .is-flipped .board-lines text {
@@ -236,12 +245,9 @@ function selectPiece(x: number, y: number) {
 .piece-scale {
   width: 88%;
   height: 88%;
-  transition: transform 0.6s;
 }
 
-.is-flipped .piece-scale {
-  transform: rotate(180deg);
-}
+/* 移除棋子的 rotate(180deg) */
 
 /* 合法落點圓點 */
 .legal-dot {
