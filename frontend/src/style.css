@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  --board-bg: #c8a96e;
+  --board-line: #8b6914;
+  --board-shadow: rgba(0, 0, 0, 0.4);
+  --red-piece-bg: #c41c1c;
+  --red-piece-border: #8b0000;
+  --red-piece-text: #fff8e1;
+  --black-piece-bg: #1a1a2e;
+  --black-piece-border: #000;
+  --black-piece-text: #e8e8e8;
+  --highlight-selected: rgba(255, 255, 0, 0.55);
+  --highlight-move: rgba(0, 200, 100, 0.45);
+  --highlight-lastmove: rgba(100, 180, 255, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Noto Serif TC', 'Noto Serif SC', serif;
+  background: #0f0f1a;
+  color: #e8e8e8;
+  min-height: 100vh;
+  overflow-x: hidden;
+}

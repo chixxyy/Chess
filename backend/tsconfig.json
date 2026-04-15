@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@chinese-chess/shared": ["../shared/index.ts"]
+    }
+  },
+  "include": ["src"],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
+}
+

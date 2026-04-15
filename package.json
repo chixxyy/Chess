@@ -1,0 +1,9 @@
+{
+  "name": "chinese-chess-app",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ]
+}
