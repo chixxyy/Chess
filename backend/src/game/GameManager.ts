@@ -151,7 +151,9 @@ export class GameManager {
   public turn: Camp;
   public status: GameStatus;
   public humanCamp: Camp;
+  public lastMove: Move | null = null;
   public fullHistory: string[] = [];
+
   private history: { fen: string; turn: Camp; lastMove: Move | null; status: GameStatus; fullHistory: string[] }[] = [];
 
   constructor(gameId: string, humanCamp: Camp = Camp.RED) {
@@ -189,10 +191,12 @@ export class GameManager {
   }
 
   public undoMove(): boolean {
-    if (this.history.length < 2) return false;
+    // 每次悔棋退回一對（玩家與 AI 的一步）
+    if (this.history.length < 3) return false;
 
-    this.history.pop(); 
-    const prevState = this.history.pop();
+    this.history.pop(); // 彈出當前 AI 走子後的狀態
+    this.history.pop(); // 彈出玩家走子後的狀態
+    const prevState = this.history[this.history.length - 1]; // 獲取上一個「等待玩家走子」的狀態
 
     if (!prevState) return false;
 
@@ -201,11 +205,11 @@ export class GameManager {
     this.turn = prevState.turn;
     this.lastMove = prevState.lastMove;
     this.status = prevState.status;
-    this.fullHistory = prevState.fullHistory;
+    this.fullHistory = [...prevState.fullHistory];
 
-    this.saveState();
     return true;
   }
+
 
 
   public get isHumanTurn(): boolean {
@@ -214,7 +218,8 @@ export class GameManager {
   }
 
   public makeMove(from: { x: number; y: number }, to: { x: number; y: number }): boolean {
-    if (this.status !== GameStatus.PLAYING) return false;
+    if (this.status !== GameStatus.PLAYING && this.status !== GameStatus.CHECK) return false;
+
 
     const piece = getPiece(this.board, from);
     if (!piece || piece.camp !== this.turn) return false;
@@ -232,29 +237,32 @@ export class GameManager {
       captured: captured?.type
     };
 
-    // 更新走子歷史
-    const fromStr = `${String.fromCharCode(65 + from.x)}${from.y}`;
-    const toStr = `${String.fromCharCode(65 + to.x)}${to.y}`;
-    const captureStr = captured ? `（吃${captured.type}）` : '';
-    this.fullHistory.push(`${fromStr}→${toStr}${captureStr}`);
+    // 更新走子歷史 (將座標與棋子轉換為直觀中文)
+    const PIECE_NAME_MAP: any = { k: '將', a: '士', b: '象', n: '馬', r: '車', c: '炮', p: '兵' };
+    const pName = PIECE_NAME_MAP[piece.type] || piece.type;
+    const fromStr = `${String.fromCharCode(65 + from.x)}${10 - from.y}`;
+    const toStr = `${String.fromCharCode(65 + to.x)}${10 - to.y}`;
+    const captureStr = captured ? ` (吃${PIECE_NAME_MAP[captured.type] || captured.type})` : '';
+    this.fullHistory.push(`${pName} ${fromStr}→${toStr}${captureStr}`);
+
 
     // 切換回合
 
     const next = this.turn === Camp.RED ? Camp.BLACK : Camp.RED;
+    this.turn = next; // 始終切換回合
 
     if (isCheckmate(this.board, next)) {
       this.status = GameStatus.CHECKMATE;
     } else if (isInCheck(this.board, next)) {
       this.status = GameStatus.CHECK;
-      this.turn = next;
     } else {
       this.status = GameStatus.PLAYING;
-      this.turn = next;
     }
 
     this.saveState();
     return true;
   }
+
 
   /**
    * 讓 AI（黑方）計算並執行一步棋，返回是否成功

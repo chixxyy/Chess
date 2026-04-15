@@ -16,9 +16,11 @@ function buildUpdate(game: GameManager): GameUpdatedPayload {
     lastMove: game.lastMove,
     status: game.status,
     isHumanTurn: game.isHumanTurn,
+    humanCamp: game.humanCamp,
     fullHistory: game.fullHistory,
   };
 }
+
 
 export function configureSocket(io: Server) {
   io.on('connection', (socket: Socket) => {

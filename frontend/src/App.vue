@@ -78,17 +78,21 @@
 
         <!-- 歷史紀錄 (始終顯示) -->
         <div class="move-history">
-          <p class="history-title">走棋記錄</p>
+          <p class="history-title">對局記錄</p>
           <div class="history-list" ref="historyRef">
             <template v-if="gameState?.fullHistory?.length">
               <div
-                v-for="(m, i) in gameState.fullHistory"
-                :key="i"
-                class="history-item"
-                :class="{ 'red-move': i % 2 === 0, 'black-move': i % 2 === 1 }"
+                v-for="pairIdx in Math.ceil(gameState.fullHistory.length / 2)"
+                :key="pairIdx"
+                class="move-row"
               >
-                <span class="move-num">{{ Math.floor(i / 2) + 1 }}.</span>
-                {{ m }}
+                <span class="move-num">{{ pairIdx }}.</span>
+                <span class="move-content red-text">
+                  {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
+                </span>
+                <span class="move-content black-text">
+                  {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
+                </span>
               </div>
             </template>
             <div v-else class="history-empty">
@@ -96,6 +100,7 @@
             </div>
           </div>
         </div>
+
 
 
       </aside>
@@ -176,7 +181,8 @@ const { isConnected, gameState, gameOver, sendMove, initGame: socketInit, resign
 
 // ─── 遊戲控制狀態 ─────────────────────────────────────────────────────────────
 
-const undoCount = ref(3);
+const undoCount = ref(10);
+
 const showResignConfirm = ref(false);
 const historyRef = ref<HTMLElement | null>(null);
 const selectedCamp = ref<Camp>(Camp.RED);
@@ -219,11 +225,17 @@ watch(() => gameState.value?.fullHistory, () => {
 const gameOverMsg = computed<string | null>(() => {
   if (!gameOver.value) return null;
   const { winner, reason } = gameOver.value;
-  if (reason === 'RESIGN') return '你已認輸，黑方勝！';
-  if (winner === Camp.RED) return '紅方獲勝！將軍！';
-  if (winner === Camp.BLACK) return '黑方獲勝！將軍！';
-  return '平局！';
+  const isWinner = winner === (gameState.value?.humanCamp || selectedCamp.value);
+  const winName = winner === Camp.RED ? '紅方' : '黑方';
+
+  if (reason === 'RESIGN') {
+    return isWinner ? `對方已認輸，${winName}勝！` : `你已認輸，${winName}勝！`;
+  }
+  
+  if (winner === 'DRAW') return '平局！';
+  return isWinner ? '恭喜！你贏了！' : `${winName}獲勝！將軍！`;
 });
+
 
 const gameOverIcon = computed(() => {
   if (!gameOver.value) return '';
@@ -252,10 +264,11 @@ const statusClass = computed(() => ({
 // ─── 玩家動作 ──────────────────────────────────────────────────────────────
 
 function handleInitGame() {
-  undoCount.value = 3;
+  undoCount.value = 10;
   showResignConfirm.value = false;
   socketInit(selectedCamp.value);
 }
+
 
 
 function confirmResign() {
@@ -264,11 +277,16 @@ function confirmResign() {
 }
 
 function handleUndo() {
-  if (undoCount.value > 0) {
-    undoCount.value--;
-    socketUndo();
+  if (undoCount.value > 0 && gameState.value) {
+    // 只有在真的是人類回合（或者遊戲結束想悔棋）時才允許
+    const isHuman = gameState.value.turn === (gameState.value.humanCamp || selectedCamp.value);
+    if (isHuman || isGameOver.value) {
+      undoCount.value--;
+      socketUndo();
+    }
   }
 }
+
 
 
 
@@ -279,13 +297,14 @@ function onPlayerMove(from: Position, to: Position) {
 
 <style scoped>
 .app-shell {
-  min-height: 100vh;
+  height: 100vh; /* 鎖死高度 */
   background: #0d0d1a;
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* 強製禁止全局滾動 */
   display: flex;
   flex-direction: column;
 }
+
 
 /* 背景光暈 */
 .bg-glow {
@@ -359,27 +378,45 @@ function onPlayerMove(from: Position, to: Position) {
 .app-main {
   position: relative;
   z-index: 10;
-  display: flex;
-  gap: 24px;
-  padding: 24px 32px;
+  display: grid;
+  grid-template-columns: 340px minmax(400px, 850px);
+  gap: 50px;
+  padding: 10px 40px;
   flex: 1;
-  align-items: stretch; /* 改為 stretch 讓兩側高度一致 */
   justify-content: center;
-  max-width: 1200px;
+  align-items: center;
+  max-width: 1600px;
   margin: 0 auto;
   width: 100%;
+  height: calc(100vh - 80px);
+  min-height: 0; /* 允許收縮 */
+  overflow: hidden; /* 禁止主區域溢出 */
 }
+
+
+
+
+
+
+
 
 
 /* ─── Info Panel ──────────────────────────────── */
 .info-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  width: 260px; /* 稍微加寬 */
-  flex-shrink: 0;
-  height: auto;
+  gap: 16px;
+  width: 100%;
+  height: 100%;
+  min-height: 0; /* 關鍵：允許內容在 Flexbox 內收縮 */
+  padding-bottom: 20px; /* 增加底部緩衝防止切邊 */
 }
+
+
+
+
+
+
 
 
 .player-card {
@@ -499,15 +536,20 @@ function onPlayerMove(from: Position, to: Position) {
 
 /* ─── 走棋歷史 ──────────────────────────────── */
 .move-history {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 10px;
-  padding: 12px;
-  flex: 1; /* 佔滿剩餘高度 */
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* 防止 overflow */
+  min-height: 0; /* 強制啟動內部滾動模式 */
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
 }
+
+
+
 
 .history-title {
   font-size: 0.7rem;
@@ -522,38 +564,74 @@ function onPlayerMove(from: Position, to: Position) {
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  padding-right: 4px;
 }
-.history-item {
-  font-size: 0.75rem;
-  padding: 3px 6px;
+
+/* 自定義滾動條 - 強化可見度 */
+.history-list::-webkit-scrollbar {
+  width: 8px; 
+}
+.history-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
-  display: flex;
-  gap: 4px;
-  align-items: center;
 }
-.red-move   { color: #f87171; background: rgba(220,60,60,0.08); }
-.black-move { color: #93c5fd; background: rgba(60,80,200,0.08); }
-.move-num   { color: #555; font-size: 0.65rem; }
+.history-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2); 
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.history-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+
+
+.move-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr;
+  gap: 8px;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.red-text   { color: #f87171; }
+.black-text { color: #93c5fd; }
+.move-num   { color: #555; font-weight: bold; }
+.move-content { font-family: 'Noto Sans TC', sans-serif; }
+
 
 .history-empty {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
-  color: #444;
+  font-size: 0.85rem;
+  color: #888; /* 提高灰度對比度 */
   font-style: italic;
+  letter-spacing: 1px;
 }
+
 
 
 /* ─── Board Section ─────────────────────────── */
 .board-section {
   position: relative;
-  flex-shrink: 0;
-  /* 關鍵修復：給予容器與棋盤一致的寬度與比例，防止未開始時塌陷 */
-  width: min(90vw, 460px);
+  /* 極大化邏輯：寬度最大 850px，高度最大不超過螢幕 78% */
+  width: min(92vw, 850px, 78vh * 440 / 480);
   aspect-ratio: 440 / 480;
+  filter: drop-shadow(0 0 40px rgba(0,0,0,0.6));
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+
+
+
+
 
 .pre-game-overlay {
   position: absolute;

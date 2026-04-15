@@ -25,8 +25,10 @@ export interface GameUpdatedPayload {
   lastMove: Move | null;
   status: GameStatus;
   isHumanTurn: boolean;
+  humanCamp: Camp;
   fullHistory: string[];
 }
+
 
 
 export interface GameOverPayload {

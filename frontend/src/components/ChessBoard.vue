@@ -87,8 +87,34 @@ const emit = defineEmits<{
   (e: 'move', from: Position, to: Position): void;
 }>();
 
-// ... (選子狀態與點擊邏輯保持不變)
-// ... (cellClass 等保持不變)
+// ─── 選子狀態 ─────────────────────────────────────────────────────────────
+
+const selected = ref<Position | null>(null);
+const legalTargets = ref<Position[]>([]);
+
+function getCell(x: number, y: number): Piece | null {
+  return props.board[y]?.[x] ?? null;
+}
+
+function isSelected(x: number, y: number): boolean {
+  return selected.value?.x === x && selected.value?.y === y;
+}
+
+function isLegalTarget(x: number, y: number): boolean {
+  return legalTargets.value.some(p => p.x === x && p.y === y);
+}
+
+function isLastMove(x: number, y: number): boolean {
+  if (!props.lastMove) return false;
+  return props.lastMove.some(p => p.x === x && p.y === y);
+}
+
+function cellClass(x: number, y: number): string[] {
+  const cls: string[] = [];
+  if (isLastMove(x, y)) cls.push('last-move');
+  return cls;
+}
+
 
 // ─── 點擊邏輯 ─────────────────────────────────────────────────────────────
 
