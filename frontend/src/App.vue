@@ -1,6 +1,5 @@
 <template>
   <div class="app-shell">
-    <!-- 背景光暈 -->
     <div class="bg-glow red-glow" />
     <div class="bg-glow blue-glow" />
 
@@ -26,7 +25,6 @@
           </div>
         </div>
 
-
         <div class="status-box" :class="statusClass">
           <p class="status-label">{{ statusText }}</p>
         </div>
@@ -41,9 +39,6 @@
 
 
         <div class="action-btns">
-          <!-- 移除重複的開始遊戲按鈕，統一使用遮罩內的按鈕 -->
-
-          
           <button
             class="btn btn-warning"
             :disabled="!gameState || undoCount <= 0 || (gameState.turn !== 'w' && !isGameOver)"
@@ -51,7 +46,6 @@
           >
             悔棋 (剩餘 {{ undoCount }} 次)
           </button>
-
 
           <button
             class="btn btn-danger"
@@ -100,9 +94,6 @@
             </div>
           </div>
         </div>
-
-
-
       </aside>
 
       <!-- 中間：棋盤 -->
@@ -132,7 +123,6 @@
           </div>
         </div>
 
-
         <ChessBoard
           v-if="currentBoard"
           :board="currentBoard"
@@ -144,8 +134,6 @@
           @move="onPlayerMove"
         />
 
-
-        <!-- 將軍動畫 Overlay -->
         <Transition name="fade">
           <div v-if="gameState?.status === GameStatus.CHECK" class="check-alert-overlay">
              <div class="check-glow" />

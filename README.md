@@ -1,8 +1,6 @@
-# 🤖 象棋 AI 對戰 Web 應用程式
+# 🤖 象棋 AI 對戰
 
 這是一個現代化、全棧式的象棋對戰系統。採用 Monorepo 架構開發，內建 Minimax 演算法的 AI 對手，並具備精美且具動態效果的棋盤介面。
-
-![棋盤截圖](https://via.placeholder.com/800x600?text=Chinese+Chess+AI+Preview)
 
 ## ✨ 核心特色
 
@@ -11,18 +9,9 @@
 - **即時通訊**：使用 Socket.io 實作全雙工通訊，確保操控流暢不延遲。
 - **完整規則引擎**：涵蓋蹩馬腿、塞象眼、將帥照面等所有標準象棋規則。
 - **進階功能**：
-  - **悔棋系統**：每局可悔棋三次。
+  - **悔棋系統**：可悔棋。
   - **認輸二次確認**：防止誤觸。
   - **實時走棋記錄**：追蹤每一手棋的變動。
-
-## 🛠 技術架構
-
-- **Frontend**: Vue 3 (Composition API), Vite, TypeScript, Tailwind CSS v4
-- **Backend**: Node.js, Express, Socket.io, TypeScript
-- **Shared**: 共享規則邏輯與型別定義 (TypeScript)
-- **Engine**: Minimax Algorithm with Alpha-Beta Pruning
-
-## 🚀 快速啟動
 
 ### 1. 安裝依賴
 
