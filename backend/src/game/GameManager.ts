@@ -153,8 +153,18 @@ export class GameManager {
   public humanCamp: Camp;
   public lastMove: Move | null = null;
   public fullHistory: string[] = [];
+  public capturedPieces: { [Camp.RED]: PieceType[]; [Camp.BLACK]: PieceType[] } = { [Camp.RED]: [], [Camp.BLACK]: [] };
+  public winner: Camp | 'DRAW' | null = null;
 
-  private history: { fen: string; turn: Camp; lastMove: Move | null; status: GameStatus; fullHistory: string[] }[] = [];
+  private history: { 
+    fen: string; 
+    turn: Camp; 
+    lastMove: Move | null; 
+    status: GameStatus; 
+    fullHistory: string[];
+    capturedPieces: { [Camp.RED]: PieceType[]; [Camp.BLACK]: PieceType[] };
+    winner: Camp | 'DRAW' | null;
+  }[] = [];
 
   constructor(gameId: string, humanCamp: Camp = Camp.RED) {
     this.gameId = gameId;
@@ -177,6 +187,8 @@ export class GameManager {
     this.status = GameStatus.PLAYING;
     this.history = [];
     this.fullHistory = [];
+    this.capturedPieces = { [Camp.RED]: [], [Camp.BLACK]: [] };
+    this.winner = null;
     this.saveState();
   }
 
@@ -186,9 +198,16 @@ export class GameManager {
       turn: this.turn,
       lastMove: this.lastMove ? { ...this.lastMove } : null,
       status: this.status,
-      fullHistory: [...this.fullHistory]
+      fullHistory: [...this.fullHistory],
+      capturedPieces: {
+        [Camp.RED]: [...this.capturedPieces[Camp.RED]],
+        [Camp.BLACK]: [...this.capturedPieces[Camp.BLACK]]
+      },
+      winner: this.winner
     });
   }
+
+
 
   public undoMove(): boolean {
     // 每次悔棋退回一對（玩家與 AI 的一步）
@@ -206,9 +225,16 @@ export class GameManager {
     this.lastMove = prevState.lastMove;
     this.status = prevState.status;
     this.fullHistory = [...prevState.fullHistory];
+    this.capturedPieces = {
+      [Camp.RED]: [...prevState.capturedPieces[Camp.RED]],
+      [Camp.BLACK]: [...prevState.capturedPieces[Camp.BLACK]]
+    };
+    this.winner = prevState.winner;
 
     return true;
   }
+
+
 
 
 
@@ -229,6 +255,10 @@ export class GameManager {
     if (!isLegal) return false;
 
     const captured = getPiece(this.board, to);
+    if (captured) {
+      // 被吃的棋子放入其屬方陣營的「遺失清單」中
+      this.capturedPieces[captured.camp].push(captured.type);
+    }
     this.board = applyMove(this.board, from, to);
     this.fen = generateFEN(this.board);
     this.lastMove = {
@@ -236,6 +266,7 @@ export class GameManager {
       piece: piece.type,
       captured: captured?.type
     };
+
 
     // 更新走子歷史 (將座標與棋子轉換為直觀中文)
     const PIECE_NAME_MAP: any = { k: '將', a: '士', b: '象', n: '馬', r: '車', c: '炮', p: '兵' };
@@ -253,6 +284,7 @@ export class GameManager {
 
     if (isCheckmate(this.board, next)) {
       this.status = GameStatus.CHECKMATE;
+      this.winner = next === Camp.RED ? Camp.BLACK : Camp.RED; // 被將死的人輸了
     } else if (isInCheck(this.board, next)) {
       this.status = GameStatus.CHECK;
     } else {
@@ -264,6 +296,7 @@ export class GameManager {
   }
 
 
+
   /**
    * 讓 AI（黑方）計算並執行一步棋，返回是否成功
    */
@@ -273,8 +306,11 @@ export class GameManager {
     const best = getBestMove(this.board, aiCamp, 3);
     if (!best) {
       this.status = GameStatus.CHECKMATE;
+      this.winner = aiCamp === Camp.RED ? Camp.BLACK : Camp.RED; // AI 沒棋走了
+      this.saveState();
       return false;
     }
     return this.makeMove(best.from, best.to);
   }
+
 }

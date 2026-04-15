@@ -1,4 +1,4 @@
-import { Camp, Position, Move, GameStatus } from './types';
+import { Camp, Position, Move, GameStatus, PieceType } from './types';
 
 export const SocketEvents = {
   INIT_GAME: 'init_game',
@@ -27,6 +27,11 @@ export interface GameUpdatedPayload {
   isHumanTurn: boolean;
   humanCamp: Camp;
   fullHistory: string[];
+  capturedPieces: {
+    red: PieceType[];
+    black: PieceType[];
+  };
+  winner: Camp | 'DRAW' | null;
 }
 
 

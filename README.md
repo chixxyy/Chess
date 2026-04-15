@@ -1,6 +1,6 @@
-# 🤖 中國象棋 AI 對戰 Web 應用程式
+# 🤖 象棋 AI 對戰 Web 應用程式
 
-這是一個現代化、全棧式的中國象棋對戰系統。採用 Monorepo 架構開發，內建 Minimax 演算法的 AI 對手，並具備精美且具動態效果的棋盤介面。
+這是一個現代化、全棧式的象棋對戰系統。採用 Monorepo 架構開發，內建 Minimax 演算法的 AI 對手，並具備精美且具動態效果的棋盤介面。
 
 ![棋盤截圖](https://via.placeholder.com/800x600?text=Chinese+Chess+AI+Preview)
 

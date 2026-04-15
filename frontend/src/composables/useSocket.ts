@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { io, Socket } from 'socket.io-client';
-import { SocketEvents } from '@chinese-chess/shared';
+import { SocketEvents, Camp } from '@chinese-chess/shared';
 import type { GameUpdatedPayload, GameOverPayload, MakeMovePayload, Position } from '@chinese-chess/shared';
 
 

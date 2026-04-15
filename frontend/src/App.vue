@@ -5,7 +5,7 @@
     <div class="bg-glow blue-glow" />
 
     <header class="app-header">
-      <h1 class="title">中國象棋 <span class="ai-badge">AI 對戰</span></h1>
+      <h1 class="title">象棋對戰 <span class="ai-badge">AI 對戰</span></h1>
       <div class="conn-badge" :class="{ connected: isConnected }">
         <span class="conn-dot" />
         {{ isConnected ? '已連線' : '連線中...' }}
@@ -163,17 +163,38 @@
             </div>
           </div>
         </Transition>
-
       </section>
+
+      <!-- 右側：被吃掉的棋子 -->
+      <aside class="captured-panel">
+        <div class="captured-group">
+          <p class="captured-title">黑方損失</p>
+          <div class="captured-list">
+            <div v-for="(pType, idx) in sortedCapturedBlack" :key="'b-'+idx" class="mini-piece-box">
+              <ChessPiece :piece="{ camp: Camp.BLACK, type: pType }" />
+            </div>
+          </div>
+        </div>
+        <div class="captured-group">
+          <p class="captured-title">紅方損失</p>
+          <div class="captured-list">
+            <div v-for="(pType, idx) in sortedCapturedRed" :key="'r-'+idx" class="mini-piece-box">
+              <ChessPiece :piece="{ camp: Camp.RED, type: pType }" />
+            </div>
+          </div>
+        </div>
+      </aside>
     </main>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue';
 import ChessBoard from './components/ChessBoard.vue';
+import ChessPiece from './components/ChessPiece.vue';
 import { useSocket } from './composables/useSocket';
-import { Camp, parseFEN, INITIAL_FEN, GameStatus } from '@chinese-chess/shared';
+import { Camp, parseFEN, INITIAL_FEN, GameStatus, PieceType } from '@chinese-chess/shared';
 import type { Position, BoardState } from '@chinese-chess/shared';
 
 
@@ -181,7 +202,7 @@ const { isConnected, gameState, gameOver, sendMove, initGame: socketInit, resign
 
 // ─── 遊戲控制狀態 ─────────────────────────────────────────────────────────────
 
-const undoCount = ref(10);
+const undoCount = ref(100);
 
 const showResignConfirm = ref(false);
 const historyRef = ref<HTMLElement | null>(null);
@@ -224,7 +245,10 @@ watch(() => gameState.value?.fullHistory, () => {
 
 const gameOverMsg = computed<string | null>(() => {
   if (!gameOver.value) return null;
-  const { winner, reason } = gameOver.value;
+  const { winner: overWinner, reason } = gameOver.value;
+  // 優先從 gameState 拿更準確的 winner，拿不到再用 event 的
+  const winner = gameState.value?.winner || overWinner;
+  
   const isWinner = winner === (gameState.value?.humanCamp || selectedCamp.value);
   const winName = winner === Camp.RED ? '紅方' : '黑方';
 
@@ -233,14 +257,17 @@ const gameOverMsg = computed<string | null>(() => {
   }
   
   if (winner === 'DRAW') return '平局！';
-  return isWinner ? '恭喜！你贏了！' : `${winName}獲勝！將軍！`;
+  return isWinner ? `恭喜！你贏了！(${winName}勝利)` : `遺憾！${winName}獲勝！將軍！`;
 });
 
 
 const gameOverIcon = computed(() => {
   if (!gameOver.value) return '';
-  return gameOver.value.winner === Camp.RED ? '🏆' : '🤖';
+  const winner = gameState.value?.winner || gameOver.value.winner;
+  const isWinner = winner === (gameState.value?.humanCamp || selectedCamp.value);
+  return isWinner ? '🏆' : '🤖';
 });
+
 
 // ─── 狀態文字 ──────────────────────────────────────────────────────────────
 
@@ -255,6 +282,20 @@ const statusText = computed(() => {
   }
 });
 
+// ─── 吃子排序 ──────────────────────────────────────────────────────────────
+
+const PIECE_ORDER: Record<string, number> = { k: 7, r: 6, c: 5, n: 4, b: 3, a: 2, p: 1 };
+
+const sortedCapturedRed = computed(() => {
+  if (!gameState.value?.capturedPieces) return [];
+  return [...gameState.value.capturedPieces.red].sort((a, b) => PIECE_ORDER[b] - PIECE_ORDER[a]);
+});
+
+const sortedCapturedBlack = computed(() => {
+  if (!gameState.value?.capturedPieces) return [];
+  return [...gameState.value.capturedPieces.black].sort((a, b) => PIECE_ORDER[b] - PIECE_ORDER[a]);
+});
+
 const statusClass = computed(() => ({
   'status-red': gameState.value?.turn === Camp.RED,
   'status-black': gameState.value?.turn === Camp.BLACK,
@@ -264,7 +305,7 @@ const statusClass = computed(() => ({
 // ─── 玩家動作 ──────────────────────────────────────────────────────────────
 
 function handleInitGame() {
-  undoCount.value = 10;
+  undoCount.value = 100;
   showResignConfirm.value = false;
   socketInit(selectedCamp.value);
 }
@@ -378,20 +419,22 @@ function onPlayerMove(from: Position, to: Position) {
 .app-main {
   position: relative;
   z-index: 10;
-  display: grid;
-  grid-template-columns: 340px minmax(400px, 850px);
-  gap: 50px;
-  padding: 10px 40px;
-  flex: 1;
+  display: flex;
   justify-content: center;
   align-items: center;
-  max-width: 1600px;
-  margin: 0 auto;
+  gap: 3vw;
+  padding: 0 20px;
+  flex: 1;
   width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
   height: calc(100vh - 80px);
-  min-height: 0; /* 允許收縮 */
-  overflow: hidden; /* 禁止主區域溢出 */
+  min-height: 0;
+  overflow: hidden; /* 確保內部溢出不影響外部 */
 }
+
+
+
 
 
 
@@ -405,12 +448,82 @@ function onPlayerMove(from: Position, to: Position) {
 .info-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  height: 100%;
-  min-height: 0; /* 關鍵：允許內容在 Flexbox 內收縮 */
-  padding-bottom: 20px; /* 增加底部緩衝防止切邊 */
+  gap: 1.5vh;
+  width: 20%; /* 使用百分比而非固定像素 */
+  min-width: 260px;
+  max-width: 340px;
+  height: 90%;
+  min-height: 0;
+  padding-bottom: 20px;
 }
+
+
+/* ─── 吃子顯示區 (右側) ───────────────────────── */
+.captured-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5vh;
+  width: 20%;
+  min-width: 260px;
+  max-width: 340px;
+  height: 90%;
+  padding: 20px 0;
+  justify-content: center;
+}
+
+
+.captured-group {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.2);
+}
+
+.captured-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.captured-list {
+  display: grid;
+  /* 根據面板寬度自動調整列數 */
+  grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.mini-piece-box {
+  width: clamp(38px, 4vw, 54px); /* 尺寸也會隨螢幕大小微調 */
+  height: clamp(38px, 4vw, 54px);
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+
+
+/* 針對小棋子的樣式微調 */
+:deep(.mini-piece-box .chess-piece) {
+  font-size: 20px !important;
+  border-width: 2px !important;
+  cursor: default;
+}
+:deep(.mini-piece-box .chess-piece:hover) {
+  transform: none; /* 移除 hover 縮放，使其看起來更像靜態顯示 */
+}
+
+
 
 
 
@@ -619,14 +732,16 @@ function onPlayerMove(from: Position, to: Position) {
 /* ─── Board Section ─────────────────────────── */
 .board-section {
   position: relative;
-  /* 極大化邏輯：寬度最大 850px，高度最大不超過螢幕 78% */
-  width: min(92vw, 850px, 78vh * 440 / 480);
+  /* 棋盤核心響應式比例：寬度自動佔據中間，但不超過 800px，高度不超過螢幕 75% */
+  width: min(50vw, 800px, 75vh * 440 / 480);
   aspect-ratio: 440 / 480;
   filter: drop-shadow(0 0 40px rgba(0,0,0,0.6));
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0; /* 禁止棋盤被壓縮變形 */
 }
+
 
 
 

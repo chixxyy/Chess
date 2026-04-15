@@ -18,8 +18,16 @@ function buildUpdate(game: GameManager): GameUpdatedPayload {
     isHumanTurn: game.isHumanTurn,
     humanCamp: game.humanCamp,
     fullHistory: game.fullHistory,
+    capturedPieces: {
+      red: game.capturedPieces[Camp.RED],
+      black: game.capturedPieces[Camp.BLACK]
+    },
+    winner: game.winner
   };
 }
+
+
+
 
 
 export function configureSocket(io: Server) {
@@ -98,10 +106,12 @@ export function configureSocket(io: Server) {
     socket.on(SocketEvents.RESIGN, () => {
       const game = games.get(GAME_ID);
       if (!game) return;
-      const aiCamp = game.humanCamp === Camp.RED ? Camp.BLACK : Camp.RED;
-      const over: GameOverPayload = { gameId: GAME_ID, winner: aiCamp, reason: 'RESIGN' };
+      game.winner = game.humanCamp === Camp.RED ? Camp.BLACK : Camp.RED;
+      const over: GameOverPayload = { gameId: GAME_ID, winner: game.winner as Camp, reason: 'RESIGN' };
       io.to(GAME_ID).emit(SocketEvents.GAME_OVER, over);
+      io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
     });
+
 
     // ── UNDO_MOVE ─────────────────────────────────────────
     socket.on(SocketEvents.UNDO_MOVE, () => {
