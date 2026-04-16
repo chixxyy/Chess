@@ -204,7 +204,7 @@ const { isConnected, gameState, gameOver, sendMove, initGame: socketInit, resign
 
 // ─── 遊戲控制狀態 ─────────────────────────────────────────────────────────────
 
-const undoCount = ref(100);
+const undoCount = ref(10);
 
 const showResignConfirm = ref(false);
 const historyRef = ref<HTMLElement | null>(null);
@@ -312,7 +312,7 @@ const statusClass = computed(() => ({
 // ─── 玩家動作 ──────────────────────────────────────────────────────────────
 
 function handleInitGame() {
-  undoCount.value = 100;
+  undoCount.value = 10;
   showResignConfirm.value = false;
   socketInit(selectedCamp.value);
 }
