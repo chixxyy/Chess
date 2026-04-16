@@ -20,8 +20,11 @@
             <p class="player-name">
               黑方 {{ (gameState?.humanCamp ?? selectedCamp) === Camp.BLACK ? '（玩家）' : '（AI）' }}
             </p>
-            <p class="player-sub">
-              {{ (gameState?.humanCamp ?? selectedCamp) === Camp.BLACK ? '後手 · 操作中' : '電腦對手' }}
+            <p v-if="(gameState?.humanCamp ?? selectedCamp) === Camp.BLACK" class="player-sub">
+              後手 · 操作中
+            </p>
+            <p v-else class="player-sub">
+              風格：<span class="strategy-tag">{{ gameState?.currentAiStyle || '風格讀取中...' }}</span>
             </p>
           </div>
           <div v-if="gameState?.turn === 'b' && !isGameOver" class="thinking-dots">
@@ -39,8 +42,11 @@
             <p class="player-name">
               紅方 {{ (gameState?.humanCamp ?? selectedCamp) === Camp.RED ? '（玩家）' : '（AI）' }}
             </p>
-            <p class="player-sub">
-              {{ (gameState?.humanCamp ?? selectedCamp) === Camp.RED ? '先手 · 操作中' : '電腦對手' }}
+            <p v-if="(gameState?.humanCamp ?? selectedCamp) === Camp.RED" class="player-sub">
+              先手 · 操作中
+            </p>
+            <p v-else class="player-sub">
+              風格：<span class="strategy-tag">{{ gameState?.currentAiStyle || '風格讀取中...' }}</span>
             </p>
           </div>
         </div>
@@ -576,6 +582,13 @@ function onPlayerMove(from: Position, to: Position) {
 .player-name { font-size: 0.9rem; font-weight: 600; color: #e8e8e8; }
 
 .player-sub  { font-size: 0.7rem; color: #666; }
+.strategy-tag {
+  color: #facc15;
+  font-weight: bold;
+  background: rgba(250, 204, 21, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
 
 /* AI 思考動畫 */
 .thinking-dots {

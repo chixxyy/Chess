@@ -22,9 +22,15 @@ function buildUpdate(game: GameManager): GameUpdatedPayload {
       red: game.capturedPieces[Camp.RED],
       black: game.capturedPieces[Camp.BLACK]
     },
-    winner: game.winner
+    winner: game.winner,
+    currentAiStyle: game.strategy.name
   };
 }
+
+
+
+
+
 
 
 

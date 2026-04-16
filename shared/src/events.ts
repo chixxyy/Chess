@@ -32,7 +32,9 @@ export interface GameUpdatedPayload {
     black: PieceType[];
   };
   winner: Camp | 'DRAW' | null;
+  currentAiStyle: string;
 }
+
 
 
 
