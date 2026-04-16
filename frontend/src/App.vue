@@ -27,10 +27,6 @@
               風格：<span class="strategy-tag">{{ gameState?.currentAiStyle || '風格讀取中...' }}</span>
             </p>
           </div>
-          <div v-if="!gameState?.isHumanTurn && (gameState?.humanCamp ?? selectedCamp) !== Camp.BLACK && !isGameOver" class="thinking-dots">
-            <span/><span/><span/>
-          </div>
-
         </div>
 
         <div class="status-box" :class="statusClass">
@@ -50,10 +46,6 @@
               風格：<span class="strategy-tag">{{ gameState?.currentAiStyle || '風格讀取中...' }}</span>
             </p>
           </div>
-          <div v-if="!gameState?.isHumanTurn && (gameState?.humanCamp ?? selectedCamp) !== Camp.RED && !isGameOver" class="thinking-dots">
-            <span/><span/><span/>
-          </div>
-
         </div>
 
 
@@ -63,7 +55,7 @@
             :disabled="!gameState || undoCount <= 0 || (!gameState.isHumanTurn && !isGameOver)"
             @click="handleUndo"
           >
-            悔棋 (剩餘 {{ undoCount }} 次)
+            悔棋 ( {{ undoCount }} )
           </button>
 
           <button
@@ -89,30 +81,74 @@
         </Transition>
 
 
-        <!-- 歷史紀錄 (始終顯示) -->
+        <!-- 歷史紀錄 (手機端平舖最新一步 / 電腦端側邊欄) -->
         <div class="move-history">
-          <p class="history-title">對局記錄</p>
-          <div class="history-list" ref="historyRef">
-            <template v-if="gameState?.fullHistory?.length">
-              <div
-                v-for="pairIdx in Math.ceil(gameState.fullHistory.length / 2)"
-                :key="pairIdx"
-                class="move-row"
-              >
-                <span class="move-num">{{ pairIdx }}.</span>
-                <span class="move-content red-text">
-                  {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
-                </span>
-                <span class="move-content black-text">
-                  {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
-                </span>
+          <p class="history-title" @click="toggleHistoryModal">
+            對局記錄 
+            <span class="mobile-only-toggle">查看全部</span>
+          </p>
+          
+          <div class="history-list">
+            <!-- 手機端：始終只顯示最新一步 (點擊開啟彈窗) -->
+            <template v-if="latestMovePair">
+              <div class="move-row latest-move-hint luxe-glow mobile-only" @click="toggleHistoryModal">
+                <span class="move-num">{{ latestMovePair.num }}.</span>
+                <span class="move-content red-text">{{ latestMovePair.red }}</span>
+                <span class="move-content black-text">{{ latestMovePair.black }}</span>
               </div>
             </template>
-            <div v-else class="history-empty">
-              等待對局開始...
+
+            <!-- 電腦版：顯示完整清單 (手機版則隱藏，改由彈窗顯示) -->
+            <div class="desktop-only-history">
+              <template v-if="gameState?.fullHistory?.length">
+                <div
+                  v-for="pairIdx in Math.ceil(gameState.fullHistory.length / 2)"
+                  :key="pairIdx"
+                  class="move-row"
+                >
+                  <span class="move-num">{{ pairIdx }}.</span>
+                  <span class="move-content red-text">
+                    {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
+                  </span>
+                  <span class="move-content black-text">
+                    {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
+                  </span>
+                </div>
+              </template>
+              <div v-else class="history-empty">
+                等待對局開始...
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- 手機端專用：歷史紀錄彈窗 -->
+        <Transition name="fade">
+          <div v-if="showHistoryModal" class="history-modal-overlay" @click.self="showHistoryModal = false">
+            <div class="history-modal-content">
+              <div class="modal-header">
+                <h3>完整對局紀錄</h3>
+                <button class="close-btn" @click="showHistoryModal = false">×</button>
+              </div>
+              <div class="modal-body history-list">
+                <div
+                  v-for="pairIdx in Math.ceil(gameState?.fullHistory?.length / 2)"
+                  :key="pairIdx"
+                  class="move-row"
+                >
+                  <span class="move-num">{{ pairIdx }}.</span>
+                  <span class="move-content red-text">
+                    {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
+                  </span>
+                  <span class="move-content black-text">
+                    {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Transition>
+
       </aside>
 
       <!-- 中間：棋盤 -->
@@ -246,6 +282,22 @@ const lastMovePair = computed<Position[] | null>(() => {
 });
 
 // ─── 遊戲歷史記錄 ──────────────────────────────────────────────────────────
+const showHistoryModal = ref(false);
+const toggleHistoryModal = () => {
+  showHistoryModal.value = !showHistoryModal.value;
+};
+
+// 取得最新的一對步法（用於手機摺疊模式）
+const latestMovePair = computed(() => {
+  if (!gameState.value?.fullHistory?.length) return null;
+  const history = gameState.value.fullHistory;
+  const pairIdx = Math.ceil(history.length / 2);
+  return {
+    num: pairIdx,
+    red: history[(pairIdx - 1) * 2],
+    black: history[(pairIdx - 1) * 2 + 1] || ''
+  };
+});
 
 watch(() => gameState.value?.fullHistory, () => {
   nextTick(() => {
@@ -743,10 +795,15 @@ function onPlayerMove(from: Position, to: Position) {
   border-radius: 6px;
   margin-bottom: 4px;
 }
-.red-text   { color: #f87171; }
-.black-text { color: #93c5fd; }
-.move-num   { color: #555; font-weight: bold; }
-.move-content { font-family: 'Noto Sans TC', sans-serif; }
+.desktop-only-history {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+}
+.mobile-only {
+  display: none;
+}
 
 
 .history-empty {
@@ -987,6 +1044,192 @@ function onPlayerMove(from: Position, to: Position) {
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.4s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* ─── 手機響應式優化 (Mobile Responsive) ───────────────── */
+@media (max-width: 768px) {
+  .app-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .app-header {
+    padding: 10px 16px;
+  }
+
+  .app-main {
+    display: grid;
+    /* 頂部四格對等分，下方棋盤與紀錄全寬 */
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: auto auto auto auto;
+    gap: 10px;
+    padding: 8px;
+    width: 100%;
+    align-items: start;
+  }
+
+  /* 核心技術：讓子元素直接參與 app-main 的 grid 排版 */
+  .info-panel {
+    display: contents;
+  }
+
+  /* 1. 隱藏狀態提示盒與吃子面板 */
+  .status-box, .captured-panel {
+    display: none;
+  }
+
+  /* 2. 統一頂部四個單元格的風格 */
+  .black-card, .red-card, .action-btns .btn {
+    grid-row: 1;
+    height: 36px !important; /* 統一高度 */
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    transition: all 0.2s;
+    min-width: 0;
+  }
+
+  /* 當前執子方的特殊高亮 (背景呼吸燈效果) */
+  .player-card.turn-active {
+    border-color: rgba(250, 204, 21, 0.4) !important;
+    animation: breathing-glow 2s ease-in-out infinite;
+    background: rgba(250, 204, 21, 0.15) !important;
+  }
+
+  @keyframes breathing-glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(250, 204, 21, 0.1); border-color: rgba(250, 204, 21, 0.2); }
+    50% { box-shadow: 0 0 15px rgba(250, 204, 21, 0.4); border-color: rgba(250, 204, 21, 0.6); }
+  }
+
+  .black-card { grid-column: 1; flex-direction: row !important; }
+  .red-card   { grid-column: 2; flex-direction: row !important; }
+
+  /* 隱藏 Icon、副標題與原本的三個點 */
+  .player-icon, .player-sub, .thinking-dots { display: none !important; }
+  .player-name { 
+    font-size: 0.7rem; 
+    font-weight: 600; 
+    white-space: nowrap;
+    text-align: center;
+    color: #ccc;
+  }
+
+  /* 4. 控制按鈕 (第三格與第四格) */
+  .action-btns {
+    display: contents;
+  }
+
+  .action-btns .btn-warning {
+    grid-column: 3;
+    color: #facc15 !important;
+  }
+
+  .action-btns .btn-danger {
+    grid-column: 4;
+    color: #f87171 !important;
+  }
+
+  /* 5. 棋盤核心 (置中全寬) */
+  .board-section {
+    grid-column: 1 / 5;
+    grid-row: 2;
+    width: 98vw !important;
+    margin: 2px auto;
+  }
+
+  /* 7. 歷史紀錄 (手機版佈局) */
+  .move-history {
+    grid-column: 1 / 5;
+    grid-row: 3;
+    width: 100%;
+    margin-top: 2px;
+    background: transparent !important;
+  }
+
+  .desktop-only-history {
+    display: none; /* 手機版主畫面不顯示完整清單 */
+  }
+
+  .mobile-only {
+    display: grid !important;
+  }
+
+  .history-title {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 4px;
+    color: #facc15 !important;
+    font-size: 0.75rem;
+  }
+
+  .mobile-only-toggle {
+    font-size: 0.6rem;
+    color: #888;
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+
+  /* 歷史紀錄彈窗樣式 */
+  .history-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .history-modal-content {
+    background: #1e1e2e;
+    width: 100%;
+    max-width: 400px;
+    max-height: 80vh;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+
+  .modal-header {
+    padding: 16px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-header h3 { font-size: 1rem; color: #facc15; }
+  .close-btn { 
+    background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; 
+  }
+
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .title { font-size: 0.9rem; }
+  .app-header { padding: 6px 12px; }
+  .check-text { font-size: 1.8rem; }
+  .thinking-dots { top: 2px !important; right: 2px !important; }
+}
+
+
 
 </style>
 
