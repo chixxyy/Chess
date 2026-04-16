@@ -284,13 +284,19 @@ export class GameManager {
 
 
   public undoMove(): boolean {
-    // 每次悔棋退回一對（玩家與 AI 的一步）
-    if (this.history.length < 3) return false;
+    // 根據當前回合判定退回步數
+    // 如果現在是 AI 回合 (isHumanTurn 為 false)，說明玩家剛動完，我們只需退回 1 步 (回到玩家動手前)
+    // 如果現在是玩家回合 (isHumanTurn 為 true)，說明 AI 剛動完，我們需退回 2 步 (回到玩家上一次動作前)
+    const isHuman = this.isHumanTurn;
+    const popCount = isHuman ? 2 : 1;
 
-    this.history.pop(); // 彈出當前 AI 走子後的狀態
-    this.history.pop(); // 彈出玩家走子後的狀態
-    const prevState = this.history[this.history.length - 1]; // 獲取上一個「等待玩家走子」的狀態
+    if (this.history.length <= popCount) return false;
 
+    for (let i = 0; i < popCount; i++) {
+        this.history.pop();
+    }
+    
+    const prevState = this.history[this.history.length - 1];
     if (!prevState) return false;
 
     this.fen = prevState.fen;
@@ -308,6 +314,7 @@ export class GameManager {
 
     return true;
   }
+
 
 
 

@@ -7,6 +7,8 @@ import { GameManager } from '../game/GameManager';
 
 const games = new Map<string, GameManager>();
 const GAME_ID = 'global-game';
+const aiTimeouts = new Map<string, NodeJS.Timeout>();
+
 
 function buildUpdate(game: GameManager): GameUpdatedPayload {
   return {
@@ -42,7 +44,15 @@ export function configureSocket(io: Server) {
 
     // ── INIT_GAME ─────────────────────────────────────────
     socket.on(SocketEvents.INIT_GAME, (data?: { camp: Camp }) => {
+      // 立即清除可能存在的 AI 定時器
+      const existingTimeout = aiTimeouts.get(GAME_ID);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        aiTimeouts.delete(GAME_ID);
+      }
+
       const playerCamp = data?.camp || Camp.RED;
+
       const game = new GameManager(GAME_ID, playerCamp);
       game.init(playerCamp);
       
@@ -82,10 +92,15 @@ export function configureSocket(io: Server) {
         return;
       }
 
-      // AI 回應（非人類回合時自動計算）
+      // AI 回應
       if (!game.isHumanTurn) {
-        // 稍微延遲讓前端有時間更新 UI
-        setTimeout(() => {
+        // 先清除可能存在的舊定時器
+        if (aiTimeouts.has(payload.gameId)) {
+          clearTimeout(aiTimeouts.get(payload.gameId));
+        }
+
+        const timeout = setTimeout(() => {
+          aiTimeouts.delete(payload.gameId);
           const aiSuccess = game.makeAiMove();
           if (!aiSuccess) {
             const over: GameOverPayload = {
@@ -105,7 +120,10 @@ export function configureSocket(io: Server) {
             io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
           }
         }, 300);
+
+        aiTimeouts.set(payload.gameId, timeout);
       }
+
     });
 
     // ── RESIGN ────────────────────────────────────────────
@@ -124,6 +142,13 @@ export function configureSocket(io: Server) {
       const game = games.get(GAME_ID);
       if (!game) return;
       
+      // 悔棋瞬間必須立即取消待定的 AI 動作
+      const existingTimeout = aiTimeouts.get(GAME_ID);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        aiTimeouts.delete(GAME_ID);
+      }
+
       const success = game.undoMove();
       if (success) {
         io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
@@ -131,6 +156,7 @@ export function configureSocket(io: Server) {
         socket.emit(SocketEvents.MOVE_REJECTED, { message: 'Cannot undo' } as ErrorPayload);
       }
     });
+
 
     socket.on('disconnect', () => {
 

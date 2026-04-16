@@ -21,15 +21,16 @@
               黑方 {{ (gameState?.humanCamp ?? selectedCamp) === Camp.BLACK ? '（玩家）' : '（AI）' }}
             </p>
             <p v-if="(gameState?.humanCamp ?? selectedCamp) === Camp.BLACK" class="player-sub">
-              後手 · 操作中
+              後手 <span v-if="gameState?.isHumanTurn" class="active-tag">· 操作中</span>
             </p>
             <p v-else class="player-sub">
               風格：<span class="strategy-tag">{{ gameState?.currentAiStyle || '風格讀取中...' }}</span>
             </p>
           </div>
-          <div v-if="gameState?.turn === 'b' && !isGameOver" class="thinking-dots">
+          <div v-if="!gameState?.isHumanTurn && (gameState?.humanCamp ?? selectedCamp) !== Camp.BLACK && !isGameOver" class="thinking-dots">
             <span/><span/><span/>
           </div>
+
         </div>
 
         <div class="status-box" :class="statusClass">
@@ -43,12 +44,16 @@
               紅方 {{ (gameState?.humanCamp ?? selectedCamp) === Camp.RED ? '（玩家）' : '（AI）' }}
             </p>
             <p v-if="(gameState?.humanCamp ?? selectedCamp) === Camp.RED" class="player-sub">
-              先手 · 操作中
+              先手 <span v-if="gameState?.isHumanTurn" class="active-tag">· 操作中</span>
             </p>
             <p v-else class="player-sub">
               風格：<span class="strategy-tag">{{ gameState?.currentAiStyle || '風格讀取中...' }}</span>
             </p>
           </div>
+          <div v-if="!gameState?.isHumanTurn && (gameState?.humanCamp ?? selectedCamp) !== Camp.RED && !isGameOver" class="thinking-dots">
+            <span/><span/><span/>
+          </div>
+
         </div>
 
 
@@ -161,7 +166,16 @@
             <div class="modal-content">
               <div class="modal-icon">{{ gameOverIcon }}</div>
               <h2 class="modal-title">{{ gameOverMsg }}</h2>
-              <button class="btn btn-primary mt-6" @click="handleInitGame">再來一局</button>
+              <div class="modal-actions mt-6">
+                <button class="btn btn-primary" @click="handleInitGame">再來一局</button>
+                <button 
+                  class="btn btn-warning" 
+                  :disabled="undoCount <= 0"
+                  @click="handleUndo"
+                >
+                  悔棋 ({{ undoCount }})
+                </button>
+              </div>
             </div>
           </div>
         </Transition>
@@ -582,6 +596,11 @@ function onPlayerMove(from: Position, to: Position) {
 .player-name { font-size: 0.9rem; font-weight: 600; color: #e8e8e8; }
 
 .player-sub  { font-size: 0.7rem; color: #666; }
+.active-tag {
+  color: #4ade80;
+  font-weight: bold;
+}
+
 .strategy-tag {
   color: #facc15;
   font-weight: bold;
@@ -873,6 +892,11 @@ function onPlayerMove(from: Position, to: Position) {
 }
 .modal-icon { font-size: 3.5rem; margin-bottom: 12px; }
 .modal-title { font-size: 1.4rem; font-weight: 700; color: #f5e6c8; }
+.modal-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
 
 .modal-enter-active, .modal-leave-active { transition: opacity 0.3s, transform 0.3s; }
 .modal-enter-from { opacity: 0; transform: scale(0.9); }

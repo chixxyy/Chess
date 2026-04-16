@@ -23,7 +23,12 @@ export function useSocket() {
 
     socket.value.on(SocketEvents.GAME_UPDATED, (payload: GameUpdatedPayload) => {
       gameState.value = payload;
+      // 如果更新中的 winner 是空的，代表對局還在進行（或剛悔棋），清空結束狀態
+      if (!payload.winner) {
+        gameOver.value = null;
+      }
     });
+
 
     socket.value.on(SocketEvents.GAME_OVER, (payload: GameOverPayload) => {
       gameOver.value = payload;
