@@ -11,7 +11,8 @@ export function useSocket() {
   const gameOver = ref<GameOverPayload | null>(null);
 
   onMounted(() => {
-    socket.value = io('http://localhost:3000', { transports: ['websocket'] });
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+    socket.value = io(backendUrl, { transports: ['websocket'] });
 
     socket.value.on('connect', () => {
       isConnected.value = true;

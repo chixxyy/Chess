@@ -2,7 +2,7 @@ import {
   BoardState, Camp, GameStatus, Move, PieceType,
   parseFEN, generateFEN, INITIAL_FEN,
   getLegalMoves, applyMove, isInCheck, isCheckmate, getPiece
-} from '@chinese-chess/shared';
+} from '../../../shared';
 
 // ─── AI 作戰風格與權重定義 ───────────────────────────────────────────────
 

@@ -1,8 +1,6 @@
 import { Server, Socket } from 'socket.io';
-import {
-  SocketEvents, MakeMovePayload,
-  GameUpdatedPayload, GameOverPayload, ErrorPayload, Camp
-} from '@chinese-chess/shared';
+import { SocketEvents, Camp, AI_PERSONALITIES, getRecommendedMove } from '../../../shared';
+import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload } from '../../../shared';
 import { GameManager } from '../game/GameManager';
 
 const games = new Map<string, GameManager>();
