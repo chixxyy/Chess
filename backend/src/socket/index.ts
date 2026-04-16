@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { SocketEvents, Camp, AI_PERSONALITIES, getRecommendedMove } from '../../../shared';
+import { SocketEvents, Camp } from '../../../shared';
 import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload } from '../../../shared';
 import { GameManager } from '../game/GameManager';
 
