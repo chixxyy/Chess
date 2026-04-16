@@ -68,17 +68,35 @@
         </div>
 
         <!-- 認輸確認彈窗 -->
-        <Transition name="modal">
-          <div v-if="showResignConfirm" class="confirm-overlay">
-            <div class="confirm-box">
-              <p class="confirm-msg">確定要認輸嗎？</p>
-              <div class="confirm-actions">
-                <button class="btn btn-danger" @click="confirmResign">確定</button>
-                <button class="btn btn-secondary" @click="showResignConfirm = false">取消</button>
+        <Teleport to="body">
+          <Transition name="modal">
+            <div v-if="showResignConfirm" class="confirm-overlay">
+              <div class="confirm-box">
+                <p class="confirm-msg">確定要認輸嗎？</p>
+                <div class="confirm-actions">
+                  <button class="btn btn-danger" @click="confirmResign">確定</button>
+                  <button class="btn btn-secondary" @click="showResignConfirm = false">取消</button>
+                </div>
               </div>
             </div>
-          </div>
-        </Transition>
+          </Transition>
+        </Teleport>
+
+
+        <!-- 通用提示彈窗 -->
+        <Teleport to="body">
+          <Transition name="modal">
+            <div v-if="alertMessage" class="confirm-overlay" @click="alertMessage = ''">
+              <div class="confirm-box luxe-alert" @click.stop>
+                <div class="alert-icon">💡</div>
+                <p class="confirm-msg">{{ alertMessage }}</p>
+                <div class="confirm-actions">
+                  <button class="btn btn-primary" @click="alertMessage = ''">知道了</button>
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </Teleport>
 
 
         <!-- 歷史紀錄 (手機端平舖最新一步 / 電腦端側邊欄) -->
@@ -123,31 +141,33 @@
         </div>
 
         <!-- 手機端專用：歷史紀錄彈窗 -->
-        <Transition name="fade">
-          <div v-if="showHistoryModal" class="history-modal-overlay" @click.self="showHistoryModal = false">
-            <div class="history-modal-content">
-              <div class="modal-header">
-                <h3>完整對局紀錄</h3>
-                <button class="close-btn" @click="showHistoryModal = false">×</button>
-              </div>
-              <div class="modal-body history-list">
-                <div
-                  v-for="pairIdx in Math.ceil(gameState?.fullHistory?.length / 2)"
-                  :key="pairIdx"
-                  class="move-row"
-                >
-                  <span class="move-num">{{ pairIdx }}.</span>
-                  <span class="move-content red-text">
-                    {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
-                  </span>
-                  <span class="move-content black-text">
-                    {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
-                  </span>
+        <Teleport to="body">
+          <Transition name="fade">
+            <div v-if="showHistoryModal" class="history-modal-overlay" @click.self="showHistoryModal = false">
+              <div class="history-modal-content">
+                <div class="modal-header">
+                  <h3>完整對局紀錄</h3>
+                  <button class="close-btn" @click="showHistoryModal = false">×</button>
+                </div>
+                <div class="modal-body history-list">
+                  <div
+                    v-for="pairIdx in Math.ceil(gameState?.fullHistory?.length / 2)"
+                    :key="pairIdx"
+                    class="move-row"
+                  >
+                    <span class="move-num">{{ pairIdx }}.</span>
+                    <span class="move-content red-text">
+                      {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
+                    </span>
+                    <span class="move-content black-text">
+                      {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </Transition>
+          </Transition>
+        </Teleport>
 
       </aside>
 
@@ -196,25 +216,8 @@
           </div>
         </Transition>
 
-        <!-- 勝負 Modal -->
-        <Transition name="modal">
-          <div v-if="gameOverMsg" class="game-over-modal">
-            <div class="modal-content">
-              <div class="modal-icon">{{ gameOverIcon }}</div>
-              <h2 class="modal-title">{{ gameOverMsg }}</h2>
-              <div class="modal-actions mt-6">
-                <button class="btn btn-primary" @click="handleInitGame">再來一局</button>
-                <button 
-                  class="btn btn-warning" 
-                  :disabled="undoCount <= 0"
-                  @click="handleUndo"
-                >
-                  悔棋 ({{ undoCount }})
-                </button>
-              </div>
-            </div>
-          </div>
-        </Transition>
+
+
       </section>
 
       <!-- 右側：被吃掉的棋子 -->
@@ -238,6 +241,27 @@
       </aside>
     </main>
 
+    <!-- 勝負全屏 Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="gameOverMsg" class="game-over-modal shadow-overlay">
+          <div class="modal-content luxe-game-over">
+            <div class="modal-icon">{{ gameOverIcon }}</div>
+            <h2 class="modal-title">{{ gameOverMsg }}</h2>
+            <div class="modal-actions mt-6">
+              <button class="btn btn-primary btn-lg" @click="handleInitGame">再來一局</button>
+              <button 
+                class="btn btn-warning btn-lg" 
+                :disabled="undoCount <= 0"
+                @click="handleUndo"
+              >
+                悔棋 ({{ undoCount }})
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -259,6 +283,8 @@ const undoCount = ref(10);
 const showResignConfirm = ref(false);
 const historyRef = ref<HTMLElement | null>(null);
 const selectedCamp = ref<Camp>(Camp.RED);
+const alertMessage = ref('');
+
 
 
 const isGameOver = computed(() =>
@@ -391,7 +417,15 @@ function confirmResign() {
 }
 
 function handleUndo() {
-  if (undoCount.value > 0 && gameState.value) {
+  if (!gameState.value) return;
+
+  // 檢查是否已經有走棋紀錄
+  if (!gameState.value.fullHistory || gameState.value.fullHistory.length === 0) {
+    alertMessage.value = '對局尚未開始，還不能悔棋喔！';
+    return;
+  }
+
+  if (undoCount.value > 0) {
     // 只有在真的是人類回合（或者遊戲結束想悔棋）時才允許
     const isHuman = gameState.value.turn === (gameState.value.humanCamp || selectedCamp.value);
     if (isHuman || isGameOver.value) {
@@ -730,6 +764,11 @@ function onPlayerMove(from: Position, to: Position) {
 .btn-danger:not(:disabled):hover { background: rgba(200,40,40,0.15); color: #e88; }
 .btn-danger:disabled { opacity: 0.35; cursor: not-allowed; }
 
+.btn-lg {
+  padding: 14px 32px;
+  font-size: 1rem;
+}
+
 .mt-6 { margin-top: 24px; }
 
 /* ─── 走棋歷史 ──────────────────────────────── */
@@ -927,25 +966,33 @@ function onPlayerMove(from: Position, to: Position) {
 
 
 
-/* ─── 勝負 Modal ────────────────────────────── */
+/* 勝負 Modal (全屏) */
 .game-over-modal {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.65);
-  backdrop-filter: blur(6px);
-  z-index: 30;
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.85); /* 稍微加深遮罩 */
+  backdrop-filter: blur(12px);
+  z-index: 9999; /* 極高層級 */
 }
-.modal-content {
+
+/* 確保全屏遮罩無死角 */
+.shadow-overlay {
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.85);
+}
+.luxe-game-over {
   text-align: center;
-  padding: 40px 48px;
-  background: rgba(255,255,255,0.06);
+  padding: 60px 80px;
+  background: rgba(30, 30, 46, 0.95);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 16px;
-  backdrop-filter: blur(16px);
+  border-radius: 24px;
+  box-shadow: 0 0 100px rgba(0,0,0,0.8), 0 0 30px rgba(245, 230, 200, 0.1);
+  max-width: 90vw;
 }
 .modal-icon { font-size: 3.5rem; margin-bottom: 12px; }
 .modal-title { font-size: 1.4rem; font-weight: 700; color: #f5e6c8; }
@@ -999,6 +1046,16 @@ function onPlayerMove(from: Position, to: Position) {
 }
 .btn-warning:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
 .btn-warning:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 自定義提示彈窗微調 */
+.luxe-alert {
+  min-width: 300px;
+  border-top: 4px solid #facc15;
+}
+.alert-icon {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+}
 
 /* 將軍動畫相關 */
 .check-alert-overlay {
