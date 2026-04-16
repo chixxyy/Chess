@@ -7,7 +7,7 @@
       <h1 class="title">象棋對戰 <span class="ai-badge">AI 對戰</span></h1>
       <div class="conn-badge" :class="{ connected: isConnected }">
         <span class="conn-dot" />
-        {{ isConnected ? '已連線' : '連線中...' }}
+        {{ isConnected ? 'AI 已連線' : 'AI 連線中...' }}
       </div>
     </header>
 
