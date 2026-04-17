@@ -5,7 +5,7 @@
 ## 🌐 線上試玩 (Live Demo)
 
 - **前端入口 (Vercel)**: [https://chess-six-bice.vercel.app](https://chess-six-bice.vercel.app)
-- **後端 API (Render)**: `https://chess-ty42.onrender.com`
+- **後端 API**: 由 Render 雲端環境託管 (內部連線)
 
 ---
 

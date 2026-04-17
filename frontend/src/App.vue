@@ -450,10 +450,20 @@ function onPlayerMove(from: Position, to: Position) {
 
 <style scoped>
 .app-shell {
-  height: 100vh; /* 鎖死高度 */
-  background: #0d0d1a;
+  /* 基礎視覺變數 (Luxe Dark) */
+  --app-bg: #0d0d1a;
+  --panel-bg: rgba(255, 255, 255, 0.03);
+  --board-bg: rgba(255, 255, 255, 0.02);
+  --board-line: rgba(245, 230, 200, 0.2);
+  --highlight-lastmove: rgba(245, 230, 200, 0.15);
+  --accent-color: #f5e6c8;
+  --text-main: #f5e6c8;
+  --text-sub: #888;
+
+  height: 100vh;
+  background: var(--app-bg);
   position: relative;
-  overflow: hidden; /* 強製禁止全局滾動 */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
