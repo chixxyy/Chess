@@ -34,3 +34,4 @@ frontend/dist/
 # Backend specific
 backend/node_modules/
 backend/dist/
+.vercel
