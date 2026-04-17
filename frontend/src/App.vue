@@ -450,13 +450,13 @@ function onPlayerMove(from: Position, to: Position) {
 
 <style scoped>
 .app-shell {
-  /* 基礎視覺變數 (Luxe Dark) */
+  /* 基礎視覺變數 - 經典木紋棋盤 + 奢華深色外殼 */
   --app-bg: #0d0d1a;
   --panel-bg: rgba(255, 255, 255, 0.03);
-  --board-bg: rgba(255, 255, 255, 0.02);
-  --board-line: rgba(245, 230, 200, 0.2);
-  --highlight-lastmove: rgba(245, 230, 200, 0.15);
-  --accent-color: #f5e6c8;
+  --board-bg: #d2b48c; /* 調深後的木紋色 */
+  --board-line: rgba(80, 50, 20, 0.6); /* 更深的格線 */
+  --highlight-lastmove: rgba(139, 90, 43, 0.25);
+  --accent-color: #d4a373; /* 古銅金 */
   --text-main: #f5e6c8;
   --text-sub: #888;
 
