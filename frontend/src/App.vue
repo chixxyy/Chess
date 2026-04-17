@@ -150,8 +150,9 @@
                   <button class="close-btn" @click="showHistoryModal = false">×</button>
                 </div>
                 <div class="modal-body history-list">
+                <template v-if="gameState?.fullHistory?.length">
                   <div
-                    v-for="pairIdx in Math.ceil(gameState?.fullHistory?.length / 2)"
+                    v-for="pairIdx in Math.ceil(gameState.fullHistory.length / 2)"
                     :key="pairIdx"
                     class="move-row"
                   >
@@ -163,11 +164,15 @@
                       {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
                     </span>
                   </div>
+                </template>
+                <div v-else class="history-empty">
+                  暫無對局紀錄
                 </div>
               </div>
             </div>
-          </Transition>
-        </Teleport>
+          </div>
+        </Transition>
+      </Teleport>
 
       </aside>
 
@@ -270,7 +275,7 @@ import { ref, computed, nextTick, watch } from 'vue';
 import ChessBoard from './components/ChessBoard.vue';
 import ChessPiece from './components/ChessPiece.vue';
 import { useSocket } from './composables/useSocket';
-import { Camp, parseFEN, INITIAL_FEN, GameStatus, PieceType } from '@chinese-chess/shared';
+import { Camp, parseFEN, GameStatus } from '@chinese-chess/shared';
 import type { Position, BoardState } from '@chinese-chess/shared';
 
 
