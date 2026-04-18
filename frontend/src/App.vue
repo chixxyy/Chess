@@ -1,5 +1,5 @@
 <template>
-  <div :class="['app-shell', { 'skin-boss': isBoss, 'skin-pawn-king': isPawnKing }]">
+  <div :class="['app-shell', themeClass]">
     <div class="bg-glow red-glow" />
     <div class="bg-glow blue-glow" />
 
@@ -312,8 +312,16 @@ const lastMovePair = computed<Position[] | null>(() => {
   return [lm.from, lm.to];
 });
 
-const isBoss = computed(() => gameState.value?.currentAiStyle === '絕世魔王');
-const isPawnKing = computed(() => gameState.value?.currentAiStyle === '卒兵之王');
+const themeClass = computed(() => {
+  const style = gameState.value?.currentAiStyle;
+  if (style === '絕世魔王') return 'skin-boss';
+  if (style === '卒兵之王') return 'skin-pawn-king';
+  if (style === '狂暴強襲') return 'skin-aggressive';
+  if (style === '鐵壁守備') return 'skin-defensive';
+  if (style === '遠程砲戰') return 'skin-cannon';
+  if (style === '詭變馬戰') return 'skin-knight';
+  return 'skin-balanced';
+});
 
 // ─── 遊戲歷史記錄 ──────────────────────────────────────────────────────────
 const showHistoryModal = ref(false);
@@ -789,50 +797,37 @@ function onPlayerMove(from: Position, to: Position) {
 
 .mt-6 { margin-top: 24px; }
 
-/* ─── 魔王降臨 (Boss Mode) ────────────────────────────────── */
-.skin-boss .red-glow {
-  background: #991b1b; /* 血紅 */
-  opacity: 0.4;
-}
-.skin-boss .blue-glow {
-  background: #6d28d9; /* 深紫 */
-  opacity: 0.4;
-}
+/* ─── 性格氛圍系統 (Style Atmosphere) ───────────────────────── */
 
-.skin-boss .strategy-tag {
-  background: rgba(153, 27, 27, 0.2);
-  border: 1px solid #ef4444;
-  color: #ef4444;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
-  animation: boss-tag-pulse 2s infinite;
-}
+/* 1. 狂暴強襲 (Aggressive) - 深熔岩紅 */
+.skin-aggressive .red-glow { background: #7f1d1d; opacity: 0.3; }
+.skin-aggressive .blue-glow { background: #450a0a; opacity: 0.2; }
+.skin-aggressive .strategy-tag { border-color: #ef4444; color: #f87171; background: rgba(127, 29, 29, 0.2); }
 
-@keyframes boss-tag-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
-}
+/* 2. 鐵壁守備 (Defensive) - 玄武岩青 */
+.skin-defensive .red-glow { background: #0f172a; opacity: 0.3; }
+.skin-defensive .blue-glow { background: #1e293b; opacity: 0.3; }
+.skin-defensive .strategy-tag { border-color: #64748b; color: #94a3b8; background: rgba(15, 23, 42, 0.2); }
 
-.skin-boss .turn-active {
-  box-shadow: 0 0 30px rgba(153, 27, 27, 0.5) !important;
-  border-color: #ef4444 !important;
-}
+/* 3. 遠程砲戰 (Cannon) - 琥珀金 */
+.skin-cannon .red-glow { background: #78350f; opacity: 0.3; }
+.skin-cannon .blue-glow { background: #451a03; opacity: 0.2; }
+.skin-cannon .strategy-tag { border-color: #d97706; color: #fbbf24; background: rgba(120, 53, 15, 0.2); }
 
-/* ─── 卒兵之王 (Pawn King) ────────────────────────────────── */
-.skin-pawn-king .red-glow {
-  background: #059669; /* 翡翠綠 */
-  opacity: 0.35;
-}
-.skin-pawn-king .blue-glow {
-  background: #65a30d; /* 石灰綠 */
-  opacity: 0.3;
-}
+/* 4. 詭變馬戰 (Knight) - 靛紫 */
+.skin-knight .red-glow { background: #312e81; opacity: 0.3; }
+.skin-knight .blue-glow { background: #1e1b4b; opacity: 0.2; }
+.skin-knight .strategy-tag { border-color: #6366f1; color: #818cf8; background: rgba(49, 46, 129, 0.2); }
 
-.skin-pawn-king .strategy-tag {
-  background: rgba(5, 150, 105, 0.2);
-  border: 1px solid #10b981;
-  color: #10b981;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-}
+/* 5. 絕世魔王 (Boss) - 血紅紫 (已有的邏輯優化) */
+.skin-boss .red-glow { background: #991b1b; opacity: 0.4; }
+.skin-boss .blue-glow { background: #6d28d9; opacity: 0.4; }
+.skin-boss .strategy-tag { border-color: #ef4444; color: #ef4444; background: rgba(153, 27, 27, 0.2); animation: boss-tag-pulse 2s infinite; }
+
+/* 6. 卒兵之王 (Pawn King) - 翡翠綠 */
+.skin-pawn-king .red-glow { background: #064e3b; opacity: 0.35; }
+.skin-pawn-king .blue-glow { background: #065f46; opacity: 0.3; }
+.skin-pawn-king .strategy-tag { border-color: #10b981; color: #34d399; background: rgba(6, 78, 59, 0.2); }
 
 /* ────────────────────────────────────────────────────────── */
 .move-history {
