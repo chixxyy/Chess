@@ -75,7 +75,7 @@ const AI_STRATEGIES: AiStrategy[] = [
     pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 1.5)),
     attackBonus: 40,
     defenseBonus: 30,
-    searchDepth: 5 // 極限深度
+    searchDepth: 6 // 終極深度
   },
   {
     name: '萬卒齊發',
@@ -83,9 +83,48 @@ const AI_STRATEGIES: AiStrategy[] = [
     pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 3)), // 三倍兵力獎勵
     attackBonus: 15,
     defenseBonus: 10,
-    searchDepth: 4
+    searchDepth: 5
   }
 ];
+
+const PST: Record<string, number[][]> = {
+  [PieceType.KNIGHT]: [
+    [-10, -10, -10, -10, -10, -10, -10, -10, -10],
+    [-10,  10,  20,  20,  10,  20,  20,  10, -10],
+    [-10,  20,  35,  35,  30,  35,  35,  20, -10],
+    [-10,  25,  40,  45,  45,  45,  40,  25, -10],
+    [-10,  25,  45,  50,  55,  50,  45,  25, -10],
+    [-10,  25,  45,  50,  55,  50,  45,  25, -10],
+    [-10,  25,  40,  45,  45,  45,  40,  25, -10],
+    [-10,  20,  30,  30,  30,  30,  30,  20, -10],
+    [-10,  10,  20,  20,  10,  20,  20,  10, -10],
+    [-10, -10, -10, -10, -10, -10, -10, -10, -10]
+  ],
+  [PieceType.CANNON]: [
+    [ 10,  15,  20,  20,  20,  20,  20,  15,  10],
+    [ 10,  20,  30,  40,  45,  40,  30,  20,  10],
+    [  0,  10,  20,  30,  35,  30,  20,  10,   0],
+    [  0,   0,  10,  20,  25,  20,  10,   0,   0],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0,   0,   0,   0],
+    [  0,   0,  10,  10,  10,  10,  10,   0,   0],
+    [  0,  10,  20,  20,  20,  20,  20,  10,   0],
+    [ 10,  20,  30,  30,  30,  30,  30,  20,  10],
+    [ 10,  10,  10,  10,  10,  10,  10,  10,  10]
+  ],
+  [PieceType.ROOK]: [
+    [ 20,  30,  30,  50,  60,  50,  30,  30,  20],
+    [ 30,  40,  40,  50,  60,  50,  40,  40,  30],
+    [ 20,  30,  30,  40,  45,  40,  30,  30,  20],
+    [ 20,  30,  30,  40,  45,  40,  30,  30,  20],
+    [ 10,  20,  20,  30,  35,  30,  20,  20,  10],
+    [ 10,  20,  20,  30,  35,  30,  20,  20,  10],
+    [ 20,  30,  30,  40,  45,  40,  30,  30,  20],
+    [ 30,  40,  40,  50,  50,  50,  40,  40,  30],
+    [ 30,  40,  40,  50,  60,  50,  40,  40,  30],
+    [ 20,  30,  30,  50,  60,  50,  30,  30,  20]
+  ]
+};
 
 function evaluate(board: BoardState, strategy: AiStrategy): number {
   let score = 0;
@@ -94,21 +133,17 @@ function evaluate(board: BoardState, strategy: AiStrategy): number {
       const p = board[yIdx][xIdx];
       if (!p) continue;
       
+      const isRed = p.camp === Camp.RED;
       let val = strategy.weights[p.type];
 
-      // 1. 位置加成：過河獎勵 (Attack Bonus)
-      const isRed = p.camp === Camp.RED;
-      const isOverRiver = isRed ? yIdx >= 5 : yIdx <= 4;
-      if (isOverRiver && p.type !== PieceType.KING) {
-        val += strategy.attackBonus;
-      }
+      // 1. 基礎子力價值
+      score += isRed ? val : -val;
 
-      // 2. 位置加成：九宮格守備獎勵 (Defense Bonus)
-      // 九宮格：x 3..5, y 0..2 (黑) 或 7..9 (紅)
-      const isNearPalace = (p.camp === Camp.RED && yIdx >= 7 && xIdx >= 3 && xIdx <= 5) ||
-                          (p.camp === Camp.BLACK && yIdx <= 2 && xIdx >= 3 && xIdx <= 5);
-      if (isNearPalace && p.type !== PieceType.KING) {
-        val += strategy.defenseBonus;
+      // 2. 位置加成 (PST)
+      const pstTable = PST[p.type];
+      if (pstTable) {
+        const pstVal = isRed ? pstTable[yIdx][xIdx] : pstTable[9 - yIdx][8 - xIdx];
+        score += isRed ? pstVal : -pstVal;
       }
 
       // 3. 兵的特殊位置加成
@@ -116,13 +151,13 @@ function evaluate(board: BoardState, strategy: AiStrategy): number {
         val += isRed
           ? (strategy.pawnBonus[yIdx]?.[xIdx] ?? 0)
           : (strategy.pawnBonus[9 - yIdx]?.[8 - xIdx] ?? 0);
+        score += isRed ? val : -val;
       }
       
       // 4. 改用預估機動性評分
       if (strategy.name === '絕世魔王' || strategy.name === '萬卒齊發') {
-         // 位置靈活性：車馬炮在中心加成，但權重需適中
          const centerScore = (4 - Math.abs(4 - xIdx)) + (4.5 - Math.abs(4.5 - yIdx));
-         score += isRed ? centerScore : -centerScore;
+         score += isRed ? centerScore * 5 : -centerScore * 5;
       }
     }
   }
@@ -220,7 +255,7 @@ function minimax(
 function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy): AiMove | null {
   const isMaximizing = camp === Camp.RED;
   const startTime = Date.now();
-  const TIME_LIMIT = 4500; // 4.5秒強制定稿，留 0.5 秒緩衝
+  const TIME_LIMIT = strategy.name === '絕世魔王' ? 8500 : 5000; // 魔王給 8.5 秒
   
   let bestMove: AiMove | null = null;
   const initialMoves: any[] = [];
