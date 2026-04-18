@@ -1,5 +1,5 @@
 <template>
-  <div class="app-shell">
+  <div :class="['app-shell', { 'skin-boss': isBoss, 'skin-pawn-king': isPawnKing }]">
     <div class="bg-glow red-glow" />
     <div class="bg-glow blue-glow" />
 
@@ -311,6 +311,9 @@ const lastMovePair = computed<Position[] | null>(() => {
   if (!lm) return null;
   return [lm.from, lm.to];
 });
+
+const isBoss = computed(() => gameState.value?.currentAiStyle === '絕世魔王');
+const isPawnKing = computed(() => gameState.value?.currentAiStyle === '卒兵之王');
 
 // ─── 遊戲歷史記錄 ──────────────────────────────────────────────────────────
 const showHistoryModal = ref(false);
@@ -786,7 +789,52 @@ function onPlayerMove(from: Position, to: Position) {
 
 .mt-6 { margin-top: 24px; }
 
-/* ─── 走棋歷史 ──────────────────────────────── */
+/* ─── 魔王降臨 (Boss Mode) ────────────────────────────────── */
+.skin-boss .red-glow {
+  background: #991b1b; /* 血紅 */
+  opacity: 0.4;
+}
+.skin-boss .blue-glow {
+  background: #6d28d9; /* 深紫 */
+  opacity: 0.4;
+}
+
+.skin-boss .strategy-tag {
+  background: rgba(153, 27, 27, 0.2);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+  animation: boss-tag-pulse 2s infinite;
+}
+
+@keyframes boss-tag-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+}
+
+.skin-boss .turn-active {
+  box-shadow: 0 0 30px rgba(153, 27, 27, 0.5) !important;
+  border-color: #ef4444 !important;
+}
+
+/* ─── 卒兵之王 (Pawn King) ────────────────────────────────── */
+.skin-pawn-king .red-glow {
+  background: #059669; /* 翡翠綠 */
+  opacity: 0.35;
+}
+.skin-pawn-king .blue-glow {
+  background: #65a30d; /* 石灰綠 */
+  opacity: 0.3;
+}
+
+.skin-pawn-king .strategy-tag {
+  background: rgba(5, 150, 105, 0.2);
+  border: 1px solid #10b981;
+  color: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+/* ────────────────────────────────────────────────────────── */
 .move-history {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.12);

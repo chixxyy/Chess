@@ -68,6 +68,22 @@ const AI_STRATEGIES: AiStrategy[] = [
     attackBonus: 25,
     defenseBonus: 5,
     searchDepth: 3
+  },
+  {
+    name: '絕世魔王',
+    weights: { [PieceType.KING]: 100000, [PieceType.ROOK]: 1200, [PieceType.CANNON]: 600, [PieceType.KNIGHT]: 650, [PieceType.PAWN]: 150, [PieceType.BISHOP]: 150, [PieceType.ADVISOR]: 150 },
+    pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 1.5)),
+    attackBonus: 40,
+    defenseBonus: 30,
+    searchDepth: 5 // 極限深度
+  },
+  {
+    name: '卒兵之王',
+    weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 800, [PieceType.CANNON]: 400, [PieceType.KNIGHT]: 350, [PieceType.PAWN]: 350, [PieceType.BISHOP]: 120, [PieceType.ADVISOR]: 120 },
+    pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 3)), // 三倍兵力獎勵
+    attackBonus: 15,
+    defenseBonus: 10,
+    searchDepth: 4
   }
 ];
 
@@ -102,11 +118,40 @@ function evaluate(board: BoardState, strategy: AiStrategy): number {
           : (strategy.pawnBonus[9 - yIdx]?.[8 - xIdx] ?? 0);
       }
       
-      score += isRed ? val : -val;
+      // 4. 改用預估機動性評分 (大幅降速)
+      if (strategy.name === '絕世魔王' || strategy.name === '卒兵之王') {
+         // 簡單的位置靈活性：越靠近中心區域分數越高
+         const centerScore = (4 - Math.abs(4 - xIdx)) + (4.5 - Math.abs(4.5 - yIdx));
+         score += isRed ? centerScore * 2 : -centerScore * 2;
+      }
     }
   }
-  // 加入較大隨機性 (±30分)，使決策更具多樣性
-  return score + (Math.random() * 60 - 30);
+  // 加入較小隨機性 (±15分)，減少純暴力計算感
+  return score + (Math.random() * 30 - 15);
+}
+
+/**
+ * 著法排序：優先搜尋吃子、將軍等高價值動作，極大化 Alpha-Beta 剪枝效率
+ */
+function sortMoves(board: BoardState, moves: {from: any, to: any}[], isMaximizing: boolean): any[] {
+  return moves.map(m => {
+    let weight = 0;
+    const attacker = getPiece(board, m.from);
+    const victim = getPiece(board, m.to);
+    
+    // 1. MVV-LVA (Most Valuable Victim - Least Valuable Aggressor)
+    if (victim) {
+      const victimWeights: any = { k: 1000, r: 90, c: 45, n: 40, p: 10, b: 11, a: 11 };
+      const attackerWeights: any = { k: 1, r: 9, c: 4.5, n: 4, p: 1, b: 1, a: 1 };
+      weight += 100 + (victimWeights[victim.type] - attackerWeights[attacker?.type || 'p']);
+    }
+
+    // 2. 歷史動作權重 (簡單處理：中心位置加分)
+    const centerDist = Math.abs(4 - m.to.x) + Math.abs(4.5 - m.to.y);
+    weight += (10 - centerDist);
+
+    return { ...m, weight };
+  }).sort((a, b) => b.weight - a.weight);
 }
 
 
@@ -175,10 +220,11 @@ function minimax(
 
 function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy): AiMove | null {
   const isMaximizing = camp === Camp.RED;
-  let bestScore = isMaximizing ? -Infinity : Infinity;
-  let best: AiMove | null = null;
-  const allMoves: AiMove[] = [];
-  const depth = strategy.searchDepth;
+  const startTime = Date.now();
+  const TIME_LIMIT = 4500; // 4.5秒強制定稿，留 0.5 秒緩衝
+  
+  let bestMove: AiMove | null = null;
+  const initialMoves: any[] = [];
 
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
@@ -186,24 +232,45 @@ function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy): AiMov
       if (!p || p.camp !== camp) continue;
       const legalMoves = getLegalMoves(board, {x, y});
       for (const to of legalMoves) {
-        allMoves.push({ from: {x, y}, to, score: 0 });
+        initialMoves.push({ from: {x, y}, to });
       }
     }
   }
 
-  if (allMoves.length === 0) return null;
+  if (initialMoves.length === 0) return null;
 
-  for (const move of allMoves) {
-    const newBoard = applyMove(board, move.from, move.to);
-    const score = minimax(newBoard, depth - 1, -Infinity, Infinity, !isMaximizing, strategy);
-    move.score = score;
-    if (isMaximizing ? score > bestScore : score < bestScore) {
-      bestScore = score;
-      best = move;
+  // 1. 初始著法排序
+  const sortedMoves = sortMoves(board, initialMoves, isMaximizing);
+
+  // 2. 疊代加深搜尋 (Iterative Deepening)
+  // 從深度 1 開始，直到達到目標深度或時間耗盡
+  for (let d = 1; d <= strategy.searchDepth; d++) {
+    let currentBestScore = isMaximizing ? -Infinity : Infinity;
+    let currentBestMove: AiMove | null = null;
+
+    for (const move of sortedMoves) {
+      // 檢查是否超時
+      if (Date.now() - startTime > TIME_LIMIT) break;
+
+      const newBoard = applyMove(board, move.from, move.to);
+      const score = minimax(newBoard, d - 1, -Infinity, Infinity, !isMaximizing, strategy);
+      
+      if (isMaximizing ? score > currentBestScore : score < currentBestScore) {
+        currentBestScore = score;
+        currentBestMove = { ...move, score };
+      }
     }
+
+    // 只要這一層算完了，就更新最終的最佳步法
+    if (currentBestMove) {
+      bestMove = currentBestMove;
+    }
+
+    // 如果這一層算完已經接近時間限制，就不進入下一層
+    if (Date.now() - startTime > TIME_LIMIT * 0.7) break;
   }
 
-  return best;
+  return bestMove;
 }
 
 
