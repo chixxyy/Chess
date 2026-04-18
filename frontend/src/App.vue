@@ -315,7 +315,7 @@ const lastMovePair = computed<Position[] | null>(() => {
 const themeClass = computed(() => {
   const style = gameState.value?.currentAiStyle;
   if (style === '絕世魔王') return 'skin-boss';
-  if (style === '卒兵之王') return 'skin-pawn-king';
+  if (style === '萬卒齊發') return 'skin-pawn-king';
   if (style === '狂暴強襲') return 'skin-aggressive';
   if (style === '鐵壁守備') return 'skin-defensive';
   if (style === '遠程砲戰') return 'skin-cannon';
@@ -799,35 +799,40 @@ function onPlayerMove(from: Position, to: Position) {
 
 /* ─── 性格氛圍系統 (Style Atmosphere) ───────────────────────── */
 
-/* 1. 狂暴強襲 (Aggressive) - 深熔岩紅 */
-.skin-aggressive .red-glow { background: #7f1d1d; opacity: 0.3; }
-.skin-aggressive .blue-glow { background: #450a0a; opacity: 0.2; }
-.skin-aggressive .strategy-tag { border-color: #ef4444; color: #f87171; background: rgba(127, 29, 29, 0.2); }
+/* 1. 穩定平衡 (Balanced) - 寶石藍 */
+.skin-balanced .red-glow { background: #1e40af; opacity: 0.25; }
+.skin-balanced .blue-glow { background: #1e3a8a; opacity: 0.2; }
+.skin-balanced .strategy-tag { border-color: #3b82f6; color: #93c5fd; background: rgba(30, 58, 138, 0.2); }
 
-/* 2. 鐵壁守備 (Defensive) - 玄武岩青 */
-.skin-defensive .red-glow { background: #0f172a; opacity: 0.3; }
-.skin-defensive .blue-glow { background: #1e293b; opacity: 0.3; }
-.skin-defensive .strategy-tag { border-color: #64748b; color: #94a3b8; background: rgba(15, 23, 42, 0.2); }
+/* 2. 狂暴強襲 (Aggressive) - 烈焰橘 */
+.skin-aggressive .red-glow { background: #ea580c; opacity: 0.25; }
+.skin-aggressive .blue-glow { background: #7c2d12; opacity: 0.2; }
+.skin-aggressive .strategy-tag { border-color: #f97316; color: #fb923c; background: rgba(124, 45, 18, 0.2); }
 
-/* 3. 遠程砲戰 (Cannon) - 琥珀金 */
-.skin-cannon .red-glow { background: #78350f; opacity: 0.3; }
-.skin-cannon .blue-glow { background: #451a03; opacity: 0.2; }
-.skin-cannon .strategy-tag { border-color: #d97706; color: #fbbf24; background: rgba(120, 53, 15, 0.2); }
+/* 3. 鐵壁守備 (Defensive) - 寒冰青 */
+.skin-defensive .red-glow { background: #0891b2; opacity: 0.25; }
+.skin-defensive .blue-glow { background: #155e75; opacity: 0.25; }
+.skin-defensive .strategy-tag { border-color: #06b6d4; color: #67e8f9; background: rgba(21, 94, 117, 0.2); }
 
-/* 4. 詭變馬戰 (Knight) - 靛紫 */
-.skin-knight .red-glow { background: #312e81; opacity: 0.3; }
-.skin-knight .blue-glow { background: #1e1b4b; opacity: 0.2; }
-.skin-knight .strategy-tag { border-color: #6366f1; color: #818cf8; background: rgba(49, 46, 129, 0.2); }
+/* 4. 遠程砲戰 (Cannon) - 流金黃 */
+.skin-cannon .red-glow { background: #d97706; opacity: 0.25; }
+.skin-cannon .blue-glow { background: #78350f; opacity: 0.2; }
+.skin-cannon .strategy-tag { border-color: #f59e0b; color: #fcd34d; background: rgba(120, 53, 15, 0.2); }
 
-/* 5. 絕世魔王 (Boss) - 血紅紫 (已有的邏輯優化) */
-.skin-boss .red-glow { background: #991b1b; opacity: 0.4; }
-.skin-boss .blue-glow { background: #6d28d9; opacity: 0.4; }
-.skin-boss .strategy-tag { border-color: #ef4444; color: #ef4444; background: rgba(153, 27, 27, 0.2); animation: boss-tag-pulse 2s infinite; }
+/* 5. 詭變馬戰 (Knight) - 魅影紫 */
+.skin-knight .red-glow { background: #a21caf; opacity: 0.25; }
+.skin-knight .blue-glow { background: #701a75; opacity: 0.2; }
+.skin-knight .strategy-tag { border-color: #d946ef; color: #f5d0fe; background: rgba(112, 26, 117, 0.2); }
 
-/* 6. 卒兵之王 (Pawn King) - 翡翠綠 */
-.skin-pawn-king .red-glow { background: #064e3b; opacity: 0.35; }
-.skin-pawn-king .blue-glow { background: #065f46; opacity: 0.3; }
-.skin-pawn-king .strategy-tag { border-color: #10b981; color: #34d399; background: rgba(6, 78, 59, 0.2); }
+/* 6. 絕世魔王 (Boss) - 毀滅紅 */
+.skin-boss .red-glow { background: #be123c; opacity: 0.35; }
+.skin-boss .blue-glow { background: #4c0519; opacity: 0.3; }
+.skin-boss .strategy-tag { border-color: #f43f5e; color: #fb7185; background: rgba(190, 18, 60, 0.2); animation: boss-tag-pulse 2s infinite; }
+
+/* 7. 萬卒齊發 (Pawn Army) - 翡翠綠 */
+.skin-pawn-king .red-glow { background: #15803d; opacity: 0.3; }
+.skin-pawn-king .blue-glow { background: #064e3b; opacity: 0.25; }
+.skin-pawn-king .strategy-tag { border-color: #22c55e; color: #86efac; background: rgba(6, 78, 59, 0.2); }
 
 /* ────────────────────────────────────────────────────────── */
 .move-history {

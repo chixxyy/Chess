@@ -78,7 +78,7 @@ const AI_STRATEGIES: AiStrategy[] = [
     searchDepth: 5 // 極限深度
   },
   {
-    name: '卒兵之王',
+    name: '萬卒齊發',
     weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 800, [PieceType.CANNON]: 400, [PieceType.KNIGHT]: 350, [PieceType.PAWN]: 350, [PieceType.BISHOP]: 120, [PieceType.ADVISOR]: 120 },
     pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 3)), // 三倍兵力獎勵
     attackBonus: 15,
@@ -119,7 +119,7 @@ function evaluate(board: BoardState, strategy: AiStrategy): number {
       }
       
       // 4. 改用預估機動性評分
-      if (strategy.name === '絕世魔王') {
+      if (strategy.name === '絕世魔王' || strategy.name === '萬卒齊發') {
          // 位置靈活性：車馬炮在中心加成，但權重需適中
          const centerScore = (4 - Math.abs(4 - xIdx)) + (4.5 - Math.abs(4.5 - yIdx));
          score += isRed ? centerScore : -centerScore;
@@ -403,7 +403,6 @@ export class GameManager {
 
   public makeMove(from: { x: number; y: number }, to: { x: number; y: number }): boolean {
     if (this.status !== GameStatus.PLAYING && this.status !== GameStatus.CHECK) return false;
-
 
     const piece = getPiece(this.board, from);
     if (!piece || piece.camp !== this.turn) return false;
