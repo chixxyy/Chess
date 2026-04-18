@@ -10,9 +10,11 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['https://chess-six-bice.vercel.app', 'http://localhost:5173'], // 僅允許官網與本地測試
+    origin: '*', // 允許所有來源以提高連線成功率
     methods: ['GET', 'POST']
-  }
+  },
+  pingTimeout: 60000, // 容許高達 60 秒的延遲 (針對長考優化)
+  pingInterval: 25000
 });
 
 app.get('/', (req, res) => {

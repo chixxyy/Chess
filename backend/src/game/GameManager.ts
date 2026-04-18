@@ -12,7 +12,8 @@ export interface AiStrategy {
   pawnBonus: number[][];
   attackBonus: number;   // 越過河界的額外獎勵 (鼓勵進攻)
   defenseBonus: number;  // 留在己方九宮格附近的獎勵 (鼓勵守備)
-  searchDepth: number;   // 性格對應的思考深度 (模擬衝動 vs 深算)
+  searchDepth: number;   // 性格對應的思考深度
+  level: string;         // 難度等級標記
 }
 
 const STANDARD_PAWN_BONUS = [
@@ -31,59 +32,48 @@ const STANDARD_PAWN_BONUS = [
 const AI_STRATEGIES: AiStrategy[] = [
   {
     name: '穩定平衡',
+    level: '高手',
     weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 900, [PieceType.CANNON]: 450, [PieceType.KNIGHT]: 400, [PieceType.PAWN]: 100, [PieceType.BISHOP]: 110, [PieceType.ADVISOR]: 110 },
     pawnBonus: STANDARD_PAWN_BONUS,
     attackBonus: 10,
     defenseBonus: 10,
-    searchDepth: 3
-  },
-  {
-    name: '狂暴強襲',
-    weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 1200, [PieceType.CANNON]: 550, [PieceType.KNIGHT]: 450, [PieceType.PAWN]: 200, [PieceType.BISHOP]: 80, [PieceType.ADVISOR]: 80 },
-    pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 2)),
-    attackBonus: 60,      // 極高過河獎勵
-    defenseBonus: -10,    // 甚至會扣分 (視死如歸)
-    searchDepth: 2        // 較淺深度 (模擬衝動)
+    searchDepth: 5
   },
   {
     name: '鐵壁守備',
+    level: '學者',
     weights: { [PieceType.KING]: 18000, [PieceType.ROOK]: 850, [PieceType.CANNON]: 400, [PieceType.KNIGHT]: 380, [PieceType.PAWN]: 80, [PieceType.BISHOP]: 300, [PieceType.ADVISOR]: 300 },
     pawnBonus: STANDARD_PAWN_BONUS,
     attackBonus: -5,
-    defenseBonus: 50,     // 極高護主獎勵
-    searchDepth: 4        // 極端深度 (老謀深算)
+    defenseBonus: 50,
+    searchDepth: 6
   },
   {
-    name: '遠程砲戰',
-    weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 850, [PieceType.CANNON]: 900, [PieceType.KNIGHT]: 350, [PieceType.PAWN]: 100, [PieceType.BISHOP]: 120, [PieceType.ADVISOR]: 120 },
-    pawnBonus: STANDARD_PAWN_BONUS,
-    attackBonus: 20,
-    defenseBonus: 5,
-    searchDepth: 3
+    name: '狂暴強襲',
+    level: '大師',
+    weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 1200, [PieceType.CANNON]: 550, [PieceType.KNIGHT]: 450, [PieceType.PAWN]: 200, [PieceType.BISHOP]: 80, [PieceType.ADVISOR]: 80 },
+    pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 2)),
+    attackBonus: 60,
+    defenseBonus: -10,
+    searchDepth: 7
   },
   {
-    name: '詭變馬戰',
-    weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 850, [PieceType.CANNON]: 400, [PieceType.KNIGHT]: 850, [PieceType.PAWN]: 100, [PieceType.BISHOP]: 120, [PieceType.ADVISOR]: 120 },
-    pawnBonus: STANDARD_PAWN_BONUS,
-    attackBonus: 25,
-    defenseBonus: 5,
-    searchDepth: 3
+    name: '萬卒齊發',
+    level: '宗師',
+    weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 800, [PieceType.CANNON]: 400, [PieceType.KNIGHT]: 350, [PieceType.PAWN]: 350, [PieceType.BISHOP]: 120, [PieceType.ADVISOR]: 120 },
+    pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 3)),
+    attackBonus: 15,
+    defenseBonus: 10,
+    searchDepth: 9
   },
   {
     name: '絕世魔王',
+    level: '至尊',
     weights: { [PieceType.KING]: 100000, [PieceType.ROOK]: 1200, [PieceType.CANNON]: 600, [PieceType.KNIGHT]: 650, [PieceType.PAWN]: 150, [PieceType.BISHOP]: 150, [PieceType.ADVISOR]: 150 },
     pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 1.5)),
     attackBonus: 40,
     defenseBonus: 30,
-    searchDepth: 6 // 終極深度
-  },
-  {
-    name: '萬卒齊發',
-    weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 800, [PieceType.CANNON]: 400, [PieceType.KNIGHT]: 350, [PieceType.PAWN]: 350, [PieceType.BISHOP]: 120, [PieceType.ADVISOR]: 120 },
-    pawnBonus: STANDARD_PAWN_BONUS.map(row => row.map(v => v * 3)), // 三倍兵力獎勵
-    attackBonus: 15,
-    defenseBonus: 10,
-    searchDepth: 5
+    searchDepth: 10
   }
 ];
 
@@ -198,6 +188,57 @@ interface AiMove {
   score: number;
 }
 
+// ─── 靜止搜尋 (Quiescence Search) ──────────────────────────────────
+// 用於處理搜尋末端的劇烈波動（如吃子），防止地平線效應
+function quiescenceSearch(board: BoardState, alpha: number, beta: number, camp: Camp, strategy: AiStrategy): number {
+  const isRed = camp === Camp.RED;
+  const standPat = evaluate(board, strategy);
+  
+  if (isRed) {
+    if (standPat >= beta) return beta;
+    if (standPat > alpha) alpha = standPat;
+  } else {
+    if (standPat <= alpha) return alpha;
+    if (standPat < beta) beta = standPat;
+  }
+
+  // 獲取所有合法走子並篩選出「吃子」著法
+  const moves: AiMove[] = [];
+  for (let y = 0; y < 10; y++) {
+    for (let x = 0; x < 9; x++) {
+      const p = board[y][x];
+      if (!p || p.camp !== camp) continue;
+      const legal = getLegalMoves(board, {x, y});
+      for (const to of legal) {
+        if (getPiece(board, to)) { // 只看吃子
+          moves.push({ from: {x, y}, to });
+        }
+      }
+    }
+  }
+
+  // 對吃子著法進行簡單排序 (MVV-LVA)
+  moves.sort((a, b) => {
+    const valA = strategy.weights[getPiece(board, a.to)!.type];
+    const valB = strategy.weights[getPiece(board, b.to)!.type];
+    return valB - valA;
+  });
+
+  for (const move of moves) {
+    const nextBoard = applyMove(board, move.from, move.to);
+    const score = quiescenceSearch(nextBoard, alpha, beta, isRed ? Camp.BLACK : Camp.RED, strategy);
+
+    if (isRed) {
+      if (score >= beta) return beta;
+      if (score > alpha) alpha = score;
+    } else {
+      if (score <= alpha) return alpha;
+      if (score < beta) beta = score;
+    }
+  }
+  return isRed ? alpha : beta;
+}
+
 function minimax(
   board: BoardState,
   depth: number,
@@ -208,7 +249,9 @@ function minimax(
   startTime: number,
   timeLimit: number
 ): number {
-  if (depth === 0) return evaluate(board, strategy);
+  if (depth === 0) {
+    return quiescenceSearch(board, alpha, beta, isMaximizing ? Camp.RED : Camp.BLACK, strategy);
+  }
   if (Date.now() - startTime > timeLimit) return evaluate(board, strategy);
 
   const camp = isMaximizing ? Camp.RED : Camp.BLACK;
@@ -255,7 +298,13 @@ function minimax(
 function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy): AiMove | null {
   const isMaximizing = camp === Camp.RED;
   const startTime = Date.now();
-  const TIME_LIMIT = strategy.name === '絕世魔王' ? 8500 : 5000; // 魔王給 8.5 秒
+  
+  // 階梯式長考機制 (全面強化版)
+  let TIME_LIMIT = 8000; // 高手 8秒
+  if (strategy.level === '學者') TIME_LIMIT = 10000;
+  if (strategy.level === '大師') TIME_LIMIT = 12000;
+  if (strategy.level === '宗師') TIME_LIMIT = 15000;
+  if (strategy.level === '至尊') TIME_LIMIT = 20000; // 至尊魔王 20秒極致長考
   
   let bestMove: AiMove | null = null;
   const initialMoves: any[] = [];

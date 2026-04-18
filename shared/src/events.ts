@@ -33,6 +33,7 @@ export interface GameUpdatedPayload {
   };
   winner: Camp | 'DRAW' | null;
   currentAiStyle: string;
+  aiLevel: string;
 }
 
 

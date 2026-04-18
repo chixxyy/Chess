@@ -24,7 +24,10 @@
               後手 <span v-if="gameState?.isHumanTurn" class="active-tag">· 操作中</span>
             </p>
             <p v-else class="player-sub">
-              風格：<span class="strategy-tag">{{ gameState?.currentAiStyle || '風格讀取中...' }}</span>
+              風格：<span class="strategy-tag">
+                {{ gameState?.currentAiStyle || '風格讀取中...' }}
+                <span v-if="gameState?.aiLevel" style="opacity: 0.7; margin-left: 4px;">· {{ gameState.aiLevel }}</span>
+              </span>
             </p>
           </div>
         </div>
@@ -43,7 +46,10 @@
               先手 <span v-if="gameState?.isHumanTurn" class="active-tag">· 操作中</span>
             </p>
             <p v-else class="player-sub">
-              風格：<span class="strategy-tag">{{ gameState?.currentAiStyle || '風格讀取中...' }}</span>
+              風格：<span class="strategy-tag">
+                {{ gameState?.currentAiStyle || '風格讀取中...' }}
+                <span v-if="gameState?.aiLevel" style="opacity: 0.7; margin-left: 4px;">· {{ gameState.aiLevel }}</span>
+              </span>
             </p>
           </div>
         </div>
@@ -799,40 +805,32 @@ function onPlayerMove(from: Position, to: Position) {
 
 /* ─── 性格氛圍系統 (Style Atmosphere) ───────────────────────── */
 
-/* 1. 穩定平衡 (Balanced) - 寶石藍 */
-.skin-balanced .red-glow { background: #1e40af; opacity: 0.25; }
-.skin-balanced .blue-glow { background: #1e3a8a; opacity: 0.2; }
-.skin-balanced .strategy-tag { border-color: #3b82f6; color: #93c5fd; background: rgba(30, 58, 138, 0.2); }
+/* ─── 5 級榮譽性格氛圍系統 (5-Level Elite System) ─────────────────── */
 
-/* 2. 狂暴強襲 (Aggressive) - 烈焰橘 */
-.skin-aggressive .red-glow { background: #ea580c; opacity: 0.25; }
-.skin-aggressive .blue-glow { background: #7c2d12; opacity: 0.2; }
-.skin-aggressive .strategy-tag { border-color: #f97316; color: #fb923c; background: rgba(124, 45, 18, 0.2); }
+/* 1. 穩定平衡 (高手) - 翡翠綠 */
+.skin-balanced .red-glow { background: #10b981; opacity: 0.3; }
+.skin-balanced .blue-glow { background: #064e3b; opacity: 0.25; }
+.skin-balanced .strategy-tag { border-color: #22c55e; color: #86efac; background: rgba(6, 78, 59, 0.2); }
 
-/* 3. 鐵壁守備 (Defensive) - 寒冰青 */
-.skin-defensive .red-glow { background: #0891b2; opacity: 0.25; }
-.skin-defensive .blue-glow { background: #155e75; opacity: 0.25; }
-.skin-defensive .strategy-tag { border-color: #06b6d4; color: #67e8f9; background: rgba(21, 94, 117, 0.2); }
+/* 2. 鐵壁守備 (學者) - 琥珀橘 */
+.skin-defensive .red-glow { background: #f59e0b; opacity: 0.3; }
+.skin-defensive .blue-glow { background: #78350f; opacity: 0.25; }
+.skin-defensive .strategy-tag { border-color: #f59e0b; color: #fcd34d; background: rgba(120, 53, 15, 0.2); }
 
-/* 4. 遠程砲戰 (Cannon) - 流金黃 */
-.skin-cannon .red-glow { background: #d97706; opacity: 0.25; }
-.skin-cannon .blue-glow { background: #78350f; opacity: 0.2; }
-.skin-cannon .strategy-tag { border-color: #f59e0b; color: #fcd34d; background: rgba(120, 53, 15, 0.2); }
+/* 3. 狂暴強襲 (大師) - 魅影紫 */
+.skin-aggressive .red-glow { background: #a855f7; opacity: 0.3; }
+.skin-aggressive .blue-glow { background: #581c87; opacity: 0.25; }
+.skin-aggressive .strategy-tag { border-color: #d8b4fe; color: #f5d0fe; background: rgba(88, 28, 135, 0.2); }
 
-/* 5. 詭變馬戰 (Knight) - 魅影紫 */
-.skin-knight .red-glow { background: #a21caf; opacity: 0.25; }
-.skin-knight .blue-glow { background: #701a75; opacity: 0.2; }
-.skin-knight .strategy-tag { border-color: #d946ef; color: #f5d0fe; background: rgba(112, 26, 117, 0.2); }
+/* 4. 萬卒齊發 (宗師) - 深海藍 */
+.skin-pawn-king .red-glow { background: #2563eb; opacity: 0.3; }
+.skin-pawn-king .blue-glow { background: #1e3a8a; opacity: 0.25; }
+.skin-pawn-king .strategy-tag { border-color: #60a5fa; color: #bfdbfe; background: rgba(30, 58, 138, 0.2); }
 
-/* 6. 絕世魔王 (Boss) - 毀滅紅 */
-.skin-boss .red-glow { background: #be123c; opacity: 0.35; }
-.skin-boss .blue-glow { background: #4c0519; opacity: 0.3; }
-.skin-boss .strategy-tag { border-color: #f43f5e; color: #fb7185; background: rgba(190, 18, 60, 0.2); animation: boss-tag-pulse 2s infinite; }
-
-/* 7. 萬卒齊發 (Pawn Army) - 翡翠綠 */
-.skin-pawn-king .red-glow { background: #15803d; opacity: 0.3; }
-.skin-pawn-king .blue-glow { background: #064e3b; opacity: 0.25; }
-.skin-pawn-king .strategy-tag { border-color: #22c55e; color: #86efac; background: rgba(6, 78, 59, 0.2); }
+/* 5. 絕世魔王 (至尊) - 毀滅紅 */
+.skin-boss .red-glow { background: #e11d48; opacity: 0.4; }
+.skin-boss .blue-glow { background: #881337; opacity: 0.3; }
+.skin-boss .strategy-tag { border-color: #fb7185; color: #fb7185; background: rgba(136, 19, 55, 0.2); animation: boss-tag-pulse 2s infinite; }
 
 /* ────────────────────────────────────────────────────────── */
 .move-history {
