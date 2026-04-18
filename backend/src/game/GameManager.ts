@@ -211,7 +211,7 @@ function quiescenceSearch(board: BoardState, alpha: number, beta: number, camp: 
       const legal = getLegalMoves(board, {x, y});
       for (const to of legal) {
         if (getPiece(board, to)) { // 只看吃子
-          moves.push({ from: {x, y}, to });
+          moves.push({ from: {x, y}, to, score: 0 });
         }
       }
     }
