@@ -242,7 +242,7 @@ function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy): AiMov
   const sortedMoves = sortMoves(board, initialMoves, isMaximizing);
 
   // 2. 疊代加深搜尋 (Iterative Deepening)
-  // 從深度 1 開始，直到達到目標深度或時間耗盡
+  let timeExceeded = false;
   for (let d = 1; d <= strategy.searchDepth; d++) {
     let currentBestScore = isMaximizing ? -Infinity : Infinity;
     let currentBestMove: AiMove | null = null;
