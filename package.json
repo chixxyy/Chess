@@ -8,6 +8,6 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
-    "build": "npm run build --workspace @chinese-chess/shared && npm run build --workspace @chinese-chess/backend && npm run build --workspace frontend"
+    "build": "cd shared && npm run build && cd ../backend && npm run build && cd ../frontend && npm run build"
   }
 }

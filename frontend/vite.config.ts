@@ -11,7 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // Trigger reload
+  },
+  build: {
+    target: 'esnext'
   }
-
 })
