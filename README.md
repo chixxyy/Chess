@@ -21,7 +21,10 @@
 - **🎨 頂級視覺體驗**：
   - **Vue 3 + Tailwind CSS v4**。
   - 具備毛玻璃效果、3D 質感棋子、即時將軍快報、勝負全屏 Modal。
-- **🔌 即時同步**：使用 **Socket.io** 實現毫秒級連線，確保 AI 思考與走子體驗流暢。
+- **🔌 高穩定性運算**：
+  - **Worker Threads**：AI 運算與主線程隔離，確保高強度計算不影響連線響應。
+  - **記憶體優化**：內建置換表 (Transposition Table) 管理，適配雲端輕量級伺服器環境。
+  - **即時同步**：使用 **Socket.io** 實現毫秒級連線。
 
 ---
 
@@ -30,7 +33,7 @@
 ```text
 Chess/
 ├── shared/   # 核心象棋規則、FEN 編碼、型別定義 (TypeScript)
-├── backend/  # Node.js + Socket.io 伺服器，負責 AI 計算與遊戲邏輯
+├── backend/  # Node.js + Socket.io 伺服器，負責 AI 計算與遊戲邏輯 (CommonJS 部署模式)
 └── frontend/ # Vue 3 現代化單頁應用，負責 UI/UX 呈現
 ```
 
@@ -51,7 +54,7 @@ cd backend
 npm run dev
 ```
 
-_預設運行於 `http://localhost:3000`_
+*預設運行於 `http://localhost:3000`。若無設定 KV 變數，將自動切換為「純記憶體模式」。*
 
 ### 3. 啟動前端開發環境 (frontend/)
 
@@ -69,13 +72,16 @@ _預設運行於 `http://localhost:5173`_
 ### 前端 (Vercel)
 
 - **Root Directory**: `frontend`
+- **Build Command**: `npm run build`
 - **Environment Variable**: `VITE_BACKEND_URL`
 
 ### 後端 (Render)
 
-- **Root Directory**: `backend`
 - **Build Command**: `npm install; npm run build`
 - **Start Command**: `node dist/backend/src/server.js`
+- **Environment Variables**: 
+  - `KV_REST_API_URL`: (Vercel KV 連線網址)
+  - `KV_REST_API_TOKEN`: (Vercel KV 驗證令牌)
 
 ---
 

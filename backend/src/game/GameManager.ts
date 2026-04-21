@@ -295,7 +295,8 @@ export class GameManager {
         });
 
         worker.on('exit', (code) => {
-          if (code !== 0) console.error(`[AI] Worker exit code: ${code}`);
+          // code 1 通常是我們手動 terminate() 導致的，在 Worker 中是正常的
+          if (code !== 0 && code !== 1) console.error(`[AI] Worker exited with unexpected code: ${code}`);
         });
       } catch (err) {
         console.error('[AI] Failed to start worker:', err);
