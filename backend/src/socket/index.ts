@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
-import { SocketEvents, Camp } from '@chinese-chess/shared';
-import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload } from '@chinese-chess/shared';
+import { SocketEvents, Camp } from '../../../shared/index';
+import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload } from '../../../shared/index';
 import { GameManager } from '../game/GameManager';
 import { db } from '../game/db';
 

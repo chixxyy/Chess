@@ -2,7 +2,7 @@ import {
   BoardState, Camp, GameStatus, Move, PieceType,
   parseFEN, generateFEN, INITIAL_FEN,
   getLegalMoves, applyMove, isInCheck, isCheckmate, getPiece
-} from '@chinese-chess/shared';
+} from '../../../shared/index';
 import { Worker } from 'worker_threads';
 import path from 'path';
 import { AiStrategy, AI_STRATEGIES, AiMove, getBestMove } from './aiEngine';

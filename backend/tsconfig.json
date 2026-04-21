@@ -1,18 +1,19 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "..",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
-    "resolveJsonModule": true
+    "baseUrl": "."
   },
-  "include": ["src"],
+  "include": ["src", "../shared/src"],
   "ts-node": {
-    "require": ["tsconfig-paths/register"]
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
   }
 }
