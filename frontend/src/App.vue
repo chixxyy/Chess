@@ -58,10 +58,10 @@
         <div class="action-btns">
           <button
             class="btn btn-warning"
-            :disabled="!gameState || undoCount <= 0 || (!gameState.isHumanTurn && !isGameOver)"
+          :disabled="!gameState || undoCount <= 0 || isUndoPending || (!gameState.isHumanTurn && !isGameOver)"
             @click="handleUndo"
           >
-            悔棋 ( {{ undoCount }} )
+            {{ isUndoPending ? '悔棋中...' : `悔棋 ( ${undoCount} )` }}
           </button>
 
           <button
@@ -263,10 +263,10 @@
               <button class="btn btn-primary btn-lg" @click="handleInitGame">再來一局</button>
               <button 
                 class="btn btn-warning btn-lg" 
-                :disabled="undoCount <= 0"
+                :disabled="undoCount <= 0 || isUndoPending"
                 @click="handleUndo"
               >
-                悔棋 ({{ undoCount }})
+                {{ isUndoPending ? '悔棋中...' : `悔棋 (${undoCount})` }}
               </button>
             </div>
           </div>
@@ -281,15 +281,46 @@ import { ref, computed, nextTick, watch } from 'vue';
 import ChessBoard from './components/ChessBoard.vue';
 import ChessPiece from './components/ChessPiece.vue';
 import { useSocket } from './composables/useSocket';
-import { Camp, parseFEN, GameStatus } from '@chinese-chess/shared';
+import { useSound } from './composables/useSound';
+import { Camp, parseFEN, GameStatus, applyMove } from '@chinese-chess/shared';
 import type { Position, BoardState } from '@chinese-chess/shared';
 
 
-const { isConnected, gameState, gameOver, sendMove, initGame: socketInit, resign: socketResign, undoMove: socketUndo } = useSocket();
+const { isConnected, gameState, gameOver, moveRejected, sendMove, initGame: socketInit, resign: socketResign, undoMove: socketUndo } = useSocket();
+const { playMove, playCapture, playCheck, playWin } = useSound();
+
+// ─── 樂觀更新 ──────────────────────────────────────────────────────────────
+// 玩家走棋時立刻在本地模擬結果，不等 server 回應
+const optimisticBoard = ref<BoardState | null>(null);
+const optimisticLastMove = ref<Position[] | null>(null);
+
+// Server 確認後清除樂觀狀態，並根據後端回傳的局面播放音效
+watch(gameState, (newState, oldState) => {
+  optimisticBoard.value = null;
+  optimisticLastMove.value = null;
+  isUndoPending.value = false; // 任何 server 更新都解除悖棋鎖
+
+  if (!newState || !oldState) return;
+  // 判斷本次更新的音效類型
+  if (newState.status === 'CHECK') {
+    playCheck();
+  } else if (newState.lastMove) {
+    // 有吃子就播較重的音
+    const hadCapture = !!newState.lastMove.captured;
+    hadCapture ? playCapture() : playMove();
+  }
+});
+
+// Server 拒絕時立刻回滾
+watch(moveRejected, () => {
+  optimisticBoard.value = null;
+  optimisticLastMove.value = null;
+});
 
 // ─── 遊戲控制狀態 ─────────────────────────────────────────────────────────────
 
 const undoCount = ref(10);
+const isUndoPending = ref(false); // 悖棋待機鎖，防止重複點擊
 
 const showResignConfirm = ref(false);
 const historyRef = ref<HTMLElement | null>(null);
@@ -307,12 +338,15 @@ const isGameOver = computed(() =>
 
 // ─── 棋盤狀態 ──────────────────────────────────────────────────────────────
 
+// 優先顯示樂觀更新的棋盤，server 確認後切換回 gameState
 const currentBoard = computed<BoardState | null>(() => {
+  if (optimisticBoard.value) return optimisticBoard.value;
   if (!gameState.value) return null;
   return parseFEN(gameState.value.fen);
 });
 
 const lastMovePair = computed<Position[] | null>(() => {
+  if (optimisticLastMove.value) return optimisticLastMove.value;
   const lm = gameState.value?.lastMove;
   if (!lm) return null;
   return [lm.from, lm.to];
@@ -354,6 +388,11 @@ watch(() => gameState.value?.fullHistory, () => {
     }
   });
 }, { deep: true });
+
+// 遊戲結束時播放勝利音
+watch(gameOver, (val) => {
+  if (val) playWin();
+});
 
 
 
@@ -448,10 +487,10 @@ function handleUndo() {
   }
 
   if (undoCount.value > 0) {
-    // 只有在真的是人類回合（或者遊戲結束想悔棋）時才允許
     const isHuman = gameState.value.turn === (gameState.value.humanCamp || selectedCamp.value);
     if (isHuman || isGameOver.value) {
       undoCount.value--;
+      isUndoPending.value = true; // 立刻鎖定按鈕，視覺零延遲
       socketUndo();
     }
   }
@@ -461,6 +500,11 @@ function handleUndo() {
 
 
 function onPlayerMove(from: Position, to: Position) {
+  // 樂觀更新：立刻在本地模擬走棋結果，視覺上零延遲
+  if (currentBoard.value) {
+    optimisticBoard.value = applyMove(currentBoard.value, from, to);
+    optimisticLastMove.value = [from, to];
+  }
   sendMove('global-game', from, to);
 }
 </script>

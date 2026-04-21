@@ -9,6 +9,7 @@ export function useSocket() {
   const isConnected = ref(false);
   const gameState = ref<GameUpdatedPayload | null>(null);
   const gameOver = ref<GameOverPayload | null>(null);
+  const moveRejected = ref(0); // 每次被拒絕就遞增，觸發 watch
 
   onMounted(() => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
@@ -33,6 +34,10 @@ export function useSocket() {
 
     socket.value.on(SocketEvents.GAME_OVER, (payload: GameOverPayload) => {
       gameOver.value = payload;
+    });
+
+    socket.value.on(SocketEvents.MOVE_REJECTED, () => {
+      moveRejected.value++; // 通知前端回滾樂觀更新
     });
   });
 
@@ -60,6 +65,6 @@ export function useSocket() {
     socket.value?.emit(SocketEvents.UNDO_MOVE);
   }
 
-  return { isConnected, gameState, gameOver, initGame, sendMove, resign, undoMove };
+  return { isConnected, gameState, gameOver, moveRejected, initGame, sendMove, resign, undoMove };
 }
 
