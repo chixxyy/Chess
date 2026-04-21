@@ -52,7 +52,8 @@ export function configureSocket(io: Server) {
 
       const playerCamp = data?.camp || Camp.RED;
 
-      const game = new GameManager(GAME_ID, playerCamp);
+      // 直接用 init() 初始化，避免 constructor 與 init 重複執行
+      const game = new GameManager(GAME_ID);
       game.init(playerCamp);
       
       // 如果玩家選黑方，AI 是紅方，紅方必須先行
@@ -83,11 +84,15 @@ export function configureSocket(io: Server) {
       // 廣播人類的這步棋
       io.to(payload.gameId).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
 
-      // 如果遊戲已結束
+      // 如果遊戲已結束（贏家已在 makeMove 裡設好，直接用 game.winner）
       if (game.status === 'CHECKMATE') {
-        const winner = game.turn === Camp.RED ? Camp.BLACK : Camp.RED; // 現在輪到的人輸了
-        const over: GameOverPayload = { gameId: game.gameId, winner, reason: 'CHECKMATE' };
-        io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
+        if (game.winner === 'DRAW') {
+          const over: GameOverPayload = { gameId: game.gameId, winner: 'DRAW' as any, reason: 'DRAW' };
+          io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
+        } else {
+          const over: GameOverPayload = { gameId: game.gameId, winner: game.winner as Camp, reason: 'CHECKMATE' };
+          io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
+        }
         return;
       }
 
