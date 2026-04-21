@@ -93,14 +93,15 @@ export function configureSocket(io: Server) {
 
       // AI 回應
       if (!game.isHumanTurn) {
-        // 先清除可能存在的舊定時器
         if (aiTimeouts.has(payload.gameId)) {
           clearTimeout(aiTimeouts.get(payload.gameId));
         }
 
-        const timeout = setTimeout(() => {
+        const timeout = setTimeout(async () => {
           aiTimeouts.delete(payload.gameId);
-          const aiSuccess = game.makeAiMove();
+
+          // makeAiMove 現在在 Worker Thread 執行，不阻塞事件循環
+          const aiSuccess = await game.makeAiMove();
           if (!aiSuccess) {
             const over: GameOverPayload = {
               gameId: game.gameId,
@@ -114,9 +115,14 @@ export function configureSocket(io: Server) {
           io.to(payload.gameId).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
 
           if (game.status === 'CHECKMATE') {
-            const winner = game.turn === Camp.RED ? Camp.BLACK : Camp.RED;
-            const over: GameOverPayload = { gameId: game.gameId, winner, reason: 'CHECKMATE' };
-            io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
+            if (game.winner === 'DRAW') {
+              const over: GameOverPayload = { gameId: game.gameId, winner: 'DRAW' as any, reason: 'DRAW' };
+              io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
+            } else {
+              const winner = game.turn === Camp.RED ? Camp.BLACK : Camp.RED;
+              const over: GameOverPayload = { gameId: game.gameId, winner, reason: 'CHECKMATE' };
+              io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
+            }
           }
         }, 300);
 
