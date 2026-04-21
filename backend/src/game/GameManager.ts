@@ -228,7 +228,7 @@ export class GameManager {
             : workerPath,
           {
             eval: isTS,
-            workerData: { fen: this.fen, camp: aiCamp, strategy: this.strategy }
+            workerData: { fen: this.fen, camp: aiCamp, strategy: this.strategy, moveCount: this.history.length }
           }
         );
 
@@ -275,7 +275,7 @@ export class GameManager {
    * 主線程回退計算 (當 Worker 無法運作時)
    */
   private async fallbackAiMove(aiCamp: Camp): Promise<boolean> {
-    const best = getBestMove(this.board, aiCamp, this.strategy);
+    const best = getBestMove(this.board, aiCamp, this.strategy, this.history.length);
     if (!best) {
       this.status = GameStatus.CHECKMATE;
       this.winner = aiCamp === Camp.RED ? Camp.BLACK : Camp.RED;

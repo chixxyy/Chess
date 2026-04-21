@@ -281,12 +281,14 @@ function minimax(
   } else {
     if (val >= oldBeta) flag = TTFlag.BETA;
     else if (val <= alpha) flag = TTFlag.ALPHA;
+    if (val >= oldBeta) flag = TTFlag.BETA;
+    else if (val <= alpha) flag = TTFlag.ALPHA;
   }
   transpositionTable.set(currentHash, { depth, score: val, flag, bestMove: bestLocalMove });
   return val;
 }
 
-export function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy): AiMove | null {
+export function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy, moveCount: number = 0): AiMove | null {
   const isMaximizing = camp === Camp.RED;
   const startTime = Date.now();
   const initialHash = calculateBoardHash(board, camp);
@@ -309,27 +311,71 @@ export function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy)
   }
   if (initialMoves.length === 0) return null;
 
-  let bestMove: AiMove | null = null;
+  let bestMoveCandidates: AiMove[] = [];
+  let currentMaxDepth = 0;
+
   for (let d = 1; d <= strategy.searchDepth; d++) {
     const entry = transpositionTable.get(initialHash);
     const sorted = sortMovesWithPV(board, initialMoves, isMaximizing, entry?.bestMove);
-    let currentBestMove = null;
-    let currentBestScore = isMaximizing ? -Infinity : Infinity;
+    
+    let iterCandidates: AiMove[] = [];
 
     for (const move of sorted) {
       if (Date.now() - startTime > timeLimit) break;
       const piece = board[move.from.y][move.from.x]!;
       const captured = board[move.to.y][move.to.x];
       const nextHash = applyMoveHash(initialHash, move.from.y * 9 + move.from.x, move.to.y * 9 + move.to.x, piece.type, piece.camp, captured?.type || null, captured?.camp || null);
+      
       const score = minimax(applyMove(board, move.from, move.to), d - 1, -Infinity, Infinity, !isMaximizing, strategy, startTime, timeLimit, nextHash);
-      if (isMaximizing ? score > currentBestScore : score < currentBestScore) {
-        currentBestScore = score;
-        currentBestMove = { ...move, score };
-      }
+      iterCandidates.push({ ...move, score });
     }
-    if (Date.now() - startTime <= timeLimit && currentBestMove) bestMove = currentBestMove;
-    if (Math.abs(currentBestScore) > 90000 || Date.now() - startTime > timeLimit * 0.7) break;
+
+    // 如果完成了一層完整的搜索，且沒超時，更新候選名單
+    if (Date.now() - startTime <= timeLimit && iterCandidates.length === initialMoves.length) {
+      bestMoveCandidates = iterCandidates;
+      currentMaxDepth = d;
+    } else {
+      break; 
+    }
+
+    // 絕殺判斷
+    const bestInIter = iterCandidates.reduce((prev, curr) => 
+      isMaximizing ? (curr.score > prev.score ? curr : prev) : (curr.score < prev.score ? curr : prev)
+    );
+    if (Math.abs(bestInIter.score) > 90000) break;
+    if (Date.now() - startTime > timeLimit * 0.7) break;
   }
-  if (bestMove) bestMove.score += (Math.random() * 2 - 1);
-  return bestMove;
+
+  if (bestMoveCandidates.length === 0) return null;
+
+  // ─── 隨機性邏輯 (Adaptive Logic) ───────────────────────────────────────────
+  
+  // 1. 根據分數排序
+  bestMoveCandidates.sort((a, b) => isMaximizing ? b.score - a.score : a.score - b.score);
+  
+  const bestScore = bestMoveCandidates[0].score;
+  
+  // 2. 定義「容許誤差」：在這個分數範圍內的棋，AI 都有機率選
+  // 開局（前 10 步）容許度較高，且低等級 AI 容許度更高
+  let threshold = 10; // 基礎容許誤差 (10分 = 0.1 隻兵)
+  
+  if (moveCount < 10) {
+    threshold = 60; // 開局大方一點，允許走次優步來變招
+  }
+  
+  if (strategy.level === '學者') threshold += 100; // 學者型 AI 喜歡嘗試「有創意」但可能不穩的棋
+  if (strategy.level === '高手') threshold += 30;
+  if (strategy.level === '至尊') threshold = 5;    // 至尊 AI 極其冷酷，只選最強
+  
+  // 3. 篩選出符合門檻的候選棋
+  const pool = bestMoveCandidates.filter(m => Math.abs(m.score - bestScore) <= threshold);
+  
+  // 4. 從 pool 中隨機選一個
+  // 但我們給「最優步」更高的機率 (加權隨機)
+  const chosen = pool[Math.floor(Math.pow(Math.random(), 2) * pool.length)];
+
+  // 5. 最後的小干擾，防止分數完全一樣時過於死板
+  chosen.score += (Math.random() * 2 - 1);
+  
+  return chosen;
 }

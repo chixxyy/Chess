@@ -9,13 +9,14 @@ import { getBestMove, AiStrategy } from './aiEngine';
 
 if (!parentPort) throw new Error('aiWorker must run as a Worker Thread');
 
-const { fen, camp, strategy } = workerData as {
+const { fen, camp, strategy, moveCount } = workerData as {
   fen: string;
   camp: Camp;
   strategy: AiStrategy;
+  moveCount: number;
 };
 
 const board = parseFEN(fen);
-const best = getBestMove(board, camp, strategy);
+const best = getBestMove(board, camp, strategy, moveCount);
 
 parentPort.postMessage(best);
