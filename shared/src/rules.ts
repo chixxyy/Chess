@@ -201,7 +201,7 @@ export function getRawMoves(board: BoardState, from: Position): Position[] {
 }
 
 export function applyMove(board: BoardState, from: Position, to: Position): BoardState {
-  const newBoard: BoardState = board.map(row => [...row]);
+  const newBoard: BoardState = board.map((row: (any)[]) => [...row]);
   newBoard[to.y][to.x] = newBoard[from.y][from.x];
   newBoard[from.y][from.x] = null;
   return newBoard;

@@ -1,5 +1,5 @@
 import { createClient } from '@vercel/kv';
-import { Camp, GameStatus, Move, PieceType } from '@chinese-chess/shared';
+import { Camp, GameStatus, Move, PieceType } from '../../../shared/index';
 import { AiStrategy } from './aiEngine';
 
 /**

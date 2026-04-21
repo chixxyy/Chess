@@ -176,8 +176,10 @@ function sortMovesWithPV(board: BoardState, moves: any[], isMaximizing: boolean,
         m.to.x === pvMove.to.x && m.to.y === pvMove.to.y) {
       weight = 2000000;
     } else if (victim) {
-      const vVal = { k: 1000, r: 90, c: 45, n: 40, p: 10, b: 11, a: 11 }[victim.type] || 0;
-      const aVal = { k: 1, r: 9, c: 4.5, n: 4, p: 1, b: 1, a: 1 }[attacker?.type || 'p'] || 1;
+      const vMap: Record<string, number> = { k: 1000, r: 90, c: 45, n: 40, p: 10, b: 11, a: 11 };
+      const aMap: Record<string, number> = { k: 1, r: 9, c: 4.5, n: 4, p: 1, b: 1, a: 1 };
+      const vVal = vMap[victim.type] || 0;
+      const aVal = aMap[attacker?.type || 'p'] || 1;
       weight = 10000 + (vVal * 10 - aVal);
     } else {
       weight = 10 - (Math.abs(4 - m.to.x) + Math.abs(4.5 - m.to.y));
