@@ -61,7 +61,11 @@ export class GameManager {
     this.fullHistory = [];
     this.capturedPieces = { [Camp.RED]: [], [Camp.BLACK]: [] };
     this.winner = null;
-    this.positionCount = new Map();
+    // 隨機抽選 AI 性格
+    this.strategy = AI_STRATEGIES[Math.floor(Math.random() * AI_STRATEGIES.length)];
+
+    this.saveState();
+  }
 
   /**
    * 轉換為純資料狀態用於持久化
