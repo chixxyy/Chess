@@ -281,34 +281,22 @@ import { ref, computed, nextTick, watch } from 'vue';
 import ChessBoard from './components/ChessBoard.vue';
 import ChessPiece from './components/ChessPiece.vue';
 import { useSocket } from './composables/useSocket';
-import { useSound } from './composables/useSound';
 import { Camp, parseFEN, GameStatus, applyMove } from '@chinese-chess/shared';
 import type { Position, BoardState } from '@chinese-chess/shared';
 
 
 const { isConnected, gameState, gameOver, moveRejected, sendMove, initGame: socketInit, resign: socketResign, undoMove: socketUndo } = useSocket();
-const { playMove, playCapture, playCheck, playWin } = useSound();
 
 // ─── 樂觀更新 ──────────────────────────────────────────────────────────────
 // 玩家走棋時立刻在本地模擬結果，不等 server 回應
 const optimisticBoard = ref<BoardState | null>(null);
 const optimisticLastMove = ref<Position[] | null>(null);
 
-// Server 確認後清除樂觀狀態，並根據後端回傳的局面播放音效
-watch(gameState, (newState, oldState) => {
+// Server 確認後清除樂觀狀態
+watch(gameState, () => {
   optimisticBoard.value = null;
   optimisticLastMove.value = null;
-  isUndoPending.value = false; // 任何 server 更新都解除悖棋鎖
-
-  if (!newState || !oldState) return;
-  // 判斷本次更新的音效類型
-  if (newState.status === 'CHECK') {
-    playCheck();
-  } else if (newState.lastMove) {
-    // 有吃子就播較重的音
-    const hadCapture = !!newState.lastMove.captured;
-    hadCapture ? playCapture() : playMove();
-  }
+  isUndoPending.value = false;
 });
 
 // Server 拒絕時立刻回滾
@@ -389,9 +377,9 @@ watch(() => gameState.value?.fullHistory, () => {
   });
 }, { deep: true });
 
-// 遊戲結束時播放勝利音
+// 遊戲結束時（原本在此播放音效）
 watch(gameOver, (val) => {
-  if (val) playWin();
+  // Sound removed
 });
 
 
