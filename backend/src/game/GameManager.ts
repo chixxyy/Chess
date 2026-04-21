@@ -175,7 +175,7 @@ export class GameManager {
     if (!piece || piece.camp !== this.turn) return false;
 
     const legal = getLegalMoves(this.board, from);
-    const isLegal = legal.some(pos => pos.x === to.x && pos.y === to.y);
+    const isLegal = legal.some((pos: any) => pos.x === to.x && pos.y === to.y);
     if (!isLegal) return false;
 
     const captured = getPiece(this.board, to);
