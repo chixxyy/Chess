@@ -7,7 +7,7 @@ import {
   BoardState, Camp, PieceType,
   getLegalMoves, applyMove, isInCheck, getPiece,
   calculateBoardHash, applyMoveHash
-} from '../../../shared';
+} from '@chinese-chess/shared';
 
 // ─── AI 作戰風格與權重定義 ───────────────────────────────────────────────
 

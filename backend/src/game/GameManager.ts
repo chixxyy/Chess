@@ -2,10 +2,11 @@ import {
   BoardState, Camp, GameStatus, Move, PieceType,
   parseFEN, generateFEN, INITIAL_FEN,
   getLegalMoves, applyMove, isInCheck, isCheckmate, getPiece
-} from '../../../shared';
+} from '@chinese-chess/shared';
 import { Worker } from 'worker_threads';
 import path from 'path';
 import { AiStrategy, AI_STRATEGIES, AiMove, getBestMove } from './aiEngine';
+import { db, GameState } from './db';
 
 // ─── GameManager ─────────────────────────────────────────────────────────────
 
@@ -62,13 +63,46 @@ export class GameManager {
     this.winner = null;
     this.positionCount = new Map();
 
-    // 隨機抽選 AI 性格
-    this.strategy = AI_STRATEGIES[Math.floor(Math.random() * AI_STRATEGIES.length)];
-
-    this.saveState();
+  /**
+   * 轉換為純資料狀態用於持久化
+   */
+  public toState(): GameState {
+    return {
+      id: this.gameId,
+      fen: this.fen,
+      turn: this.turn,
+      status: this.status,
+      humanCamp: this.humanCamp,
+      lastMove: this.lastMove,
+      fullHistory: [...this.fullHistory],
+      capturedPieces: JSON.parse(JSON.stringify(this.capturedPieces)),
+      winner: this.winner,
+      strategy: this.strategy,
+      history: JSON.parse(JSON.stringify(this.history)),
+      lastUpdate: Date.now()
+    };
   }
 
-  private saveState() {
+  /**
+   * 從保存的狀態重建 GameManager
+   */
+  public static fromState(state: any): GameManager {
+    const gm = new GameManager(state.id || state.gameId, state.humanCamp);
+    gm.board = parseFEN(state.fen);
+    gm.fen = state.fen;
+    gm.turn = state.turn;
+    gm.status = state.status;
+    gm.lastMove = state.lastMove;
+    gm.fullHistory = state.fullHistory || [];
+    gm.capturedPieces = state.capturedPieces || { [Camp.RED]: [], [Camp.BLACK]: [] };
+    gm.winner = state.winner;
+    gm.strategy = state.strategy;
+    gm.history = state.history || [];
+    return gm;
+  }
+
+  public saveState() {
+    // 1. 存入本地悔棋歷史 (限制最大長度)
     this.history.push({
       fen: this.fen,
       turn: this.turn,
@@ -82,10 +116,12 @@ export class GameManager {
       winner: this.winner,
       strategy: this.strategy
     });
-    // 防止 history 無限增長導致記憶體膨脹及性能下降
     if (this.history.length > this.MAX_HISTORY) {
       this.history.shift();
     }
+
+    // 2. 異步同步到 Redis 雲端
+    db.saveGame(this.toState()).catch(err => console.error('[GameManager] Redis save failed:', err));
   }
 
   public undoMove(): boolean {

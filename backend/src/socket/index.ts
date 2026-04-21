@@ -1,7 +1,8 @@
 import { Server, Socket } from 'socket.io';
-import { SocketEvents, Camp } from '../../../shared';
-import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload } from '../../../shared';
+import { SocketEvents, Camp } from '@chinese-chess/shared';
+import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload } from '@chinese-chess/shared';
 import { GameManager } from '../game/GameManager';
+import { db } from '../game/db';
 
 const games = new Map<string, GameManager>();
 const GAME_ID = 'global-game';
@@ -170,25 +171,35 @@ export function configureSocket(io: Server) {
 
     // ── RESTORE_GAME ──────────────────────────────────────────
     // 斷線重連後，前端發送此事件請求恢復棋局狀態
-    socket.on(SocketEvents.RESTORE_GAME, () => {
-      const game = games.get(GAME_ID);
-      if (!game) return;
+    socket.on(SocketEvents.RESTORE_GAME, async () => {
+      let game = games.get(GAME_ID);
 
-      // 重新加入房間並推送當前狀態
-      socket.join(GAME_ID);
-      socket.emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
-
-      // 如果遊戲已結束，也補發 GAME_OVER 事件
-      if (game.status === 'CHECKMATE' && game.winner) {
-        const over: GameOverPayload = {
-          gameId: game.gameId,
-          winner: game.winner as any,
-          reason: game.winner === 'DRAW' ? 'DRAW' : 'CHECKMATE'
-        };
-        socket.emit(SocketEvents.GAME_OVER, over);
+      // 如果內存找不到，嘗試從 Redis 恢復
+      if (!game) {
+        const savedState = await db.loadGame(GAME_ID);
+        if (savedState) {
+          game = GameManager.fromState(savedState);
+          games.set(GAME_ID, game);
+          console.log(`[RESTORE] Global game successfully restored from Redis`);
+        }
       }
 
-      console.log(`[socket] ${socket.id} restored game state`);
+      if (game) {
+        // 重新加入房間並推送當前狀態
+        socket.join(GAME_ID);
+        socket.emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
+
+        // 如果遊戲已結束，也補發 GAME_OVER 事件
+        if (game.status === 'CHECKMATE' && game.winner) {
+          const over: GameOverPayload = {
+            gameId: game.gameId,
+            winner: game.winner as any,
+            reason: game.winner === 'DRAW' ? 'DRAW' : 'CHECKMATE'
+          };
+          socket.emit(SocketEvents.GAME_OVER, over);
+        }
+        console.log(`[socket] ${socket.id} restored game state`);
+      }
     });
 
     socket.on('disconnect', () => {

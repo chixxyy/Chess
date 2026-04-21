@@ -4,7 +4,7 @@
  * 主線程不被阻塞，socket ping/pong 正常運作
  */
 import { workerData, parentPort } from 'worker_threads';
-import { parseFEN, Camp } from '../../../shared';
+import { parseFEN, Camp } from '@chinese-chess/shared';
 import { getBestMove, AiStrategy } from './aiEngine';
 
 if (!parentPort) throw new Error('aiWorker must run as a Worker Thread');
