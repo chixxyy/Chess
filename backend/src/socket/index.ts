@@ -168,8 +168,30 @@ export function configureSocket(io: Server) {
     });
 
 
-    socket.on('disconnect', () => {
+    // ── RESTORE_GAME ──────────────────────────────────────────
+    // 斷線重連後，前端發送此事件請求恢復棋局狀態
+    socket.on(SocketEvents.RESTORE_GAME, () => {
+      const game = games.get(GAME_ID);
+      if (!game) return;
 
+      // 重新加入房間並推送當前狀態
+      socket.join(GAME_ID);
+      socket.emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
+
+      // 如果遊戲已結束，也補發 GAME_OVER 事件
+      if (game.status === 'CHECKMATE' && game.winner) {
+        const over: GameOverPayload = {
+          gameId: game.gameId,
+          winner: game.winner as any,
+          reason: game.winner === 'DRAW' ? 'DRAW' : 'CHECKMATE'
+        };
+        socket.emit(SocketEvents.GAME_OVER, over);
+      }
+
+      console.log(`[socket] ${socket.id} restored game state`);
+    });
+
+    socket.on('disconnect', () => {
       console.log(`[socket] disconnected: ${socket.id}`);
     });
   });

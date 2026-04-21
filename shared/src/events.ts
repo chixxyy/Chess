@@ -8,7 +8,8 @@ export const SocketEvents = {
   GAME_UPDATED: 'game_updated',
   MOVE_REJECTED: 'move_rejected',
   GAME_OVER: 'game_over',
-  UNDO_MOVE: 'undo_move'
+  UNDO_MOVE: 'undo_move',
+  RESTORE_GAME: 'restore_game'  // 斷線重連後請求恢復棋局
 } as const;
 
 

@@ -9,11 +9,18 @@ export function useSocket() {
   const isConnected = ref(false);
   const gameState = ref<GameUpdatedPayload | null>(null);
   const gameOver = ref<GameOverPayload | null>(null);
-  const moveRejected = ref(0); // 每次被拒絕就遞增，觸發 watch
+  const moveRejected = ref(0);
 
   onMounted(() => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-    socket.value = io(backendUrl, { transports: ['websocket'] });
+    socket.value = io(backendUrl, {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity, // 無限重試，絕不放棄
+      reconnectionDelay: 1000,        // 1 秒後第一次重試
+      reconnectionDelayMax: 5000,     // 最長等 5 秒
+      timeout: 20000
+    });
 
     socket.value.on('connect', () => {
       isConnected.value = true;
@@ -23,21 +30,27 @@ export function useSocket() {
       isConnected.value = false;
     });
 
+    // 重連成功 → 自動請求恢復棋局
+    socket.value.on('reconnect', () => {
+      isConnected.value = true;
+      if (gameState.value) {
+        socket.value?.emit(SocketEvents.RESTORE_GAME);
+      }
+    });
+
     socket.value.on(SocketEvents.GAME_UPDATED, (payload: GameUpdatedPayload) => {
       gameState.value = payload;
-      // 如果更新中的 winner 是空的，代表對局還在進行（或剛悔棋），清空結束狀態
       if (!payload.winner) {
         gameOver.value = null;
       }
     });
-
 
     socket.value.on(SocketEvents.GAME_OVER, (payload: GameOverPayload) => {
       gameOver.value = payload;
     });
 
     socket.value.on(SocketEvents.MOVE_REJECTED, () => {
-      moveRejected.value++; // 通知前端回滾樂觀更新
+      moveRejected.value++;
     });
   });
 
@@ -50,7 +63,6 @@ export function useSocket() {
     gameState.value = null;
     socket.value?.emit(SocketEvents.INIT_GAME, { camp });
   }
-
 
   function sendMove(gameId: string, from: Position, to: Position) {
     const payload: MakeMovePayload = { gameId, from, to };
@@ -67,4 +79,3 @@ export function useSocket() {
 
   return { isConnected, gameState, gameOver, moveRejected, initGame, sendMove, resign, undoMove };
 }
-

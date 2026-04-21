@@ -492,6 +492,14 @@ function handleUndo() {
       undoCount.value--;
       isUndoPending.value = true; // 立刻鎖定按鈕，視覺零延遲
       socketUndo();
+
+      // 10 秒安全超時：若斷線導致 server 無回應，自動解鎖防止永久卡死
+      setTimeout(() => {
+        if (isUndoPending.value) {
+          isUndoPending.value = false;
+          undoCount.value++; // 退還次數，這次悔棋視為未完成
+        }
+      }, 10000);
     }
   }
 }

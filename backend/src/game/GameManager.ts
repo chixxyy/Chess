@@ -188,7 +188,8 @@ export class GameManager {
 
   /**
    * 讓 AI 計算並執行一步棋，在 Worker Thread 中非同步執行
-   * 具備「自動回退機制」：若 Worker 啟動失敗，則回退至主線程計算，確保遊戲穩定。
+   * - settled flag：防止 message/error/exit 事件競爭，確保 resolve 只執行一次
+   * - 超時保護：Worker 沉默超過上限，強制切換主線程，永不卡死
    */
   public makeAiMove(): Promise<boolean> {
     return new Promise(async (resolve) => {
@@ -198,56 +199,74 @@ export class GameManager {
       }
 
       const aiCamp = this.turn;
-      
+      const maxWait = (this.strategy.searchDepth >= 9 ? 20000 : 15000) + 8000;
+
+      // settled flag：確保只 resolve 一次
+      let settled = false;
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(hardTimeout);
+        fn();
+      };
+
+      // 硬性超時：Worker 沉默就強制 fallback
+      const hardTimeout = setTimeout(() => {
+        settle(() => {
+          console.error(`[aiWorker] timeout after ${maxWait}ms, falling back to main thread`);
+          this.fallbackAiMove(aiCamp).then(resolve);
+        });
+      }, maxWait);
+
       try {
-        // 1. 嘗試使用 Worker Thread
         const isTS = __filename.endsWith('.ts');
-        const workerExt = isTS ? '.ts' : '.js';
-        const workerPath = path.join(__dirname, `aiWorker${workerExt}`);
+        const workerPath = path.join(__dirname, `aiWorker${isTS ? '.ts' : '.js'}`);
 
         const worker = new Worker(
-          isTS 
+          isTS
             ? `require('ts-node/register'); require('tsconfig-paths/register'); require(${JSON.stringify(workerPath)})`
             : workerPath,
           {
             eval: isTS,
-            workerData: {
-              fen: this.fen,
-              camp: aiCamp,
-              strategy: this.strategy
-            }
+            workerData: { fen: this.fen, camp: aiCamp, strategy: this.strategy }
           }
         );
 
         worker.once('message', (best: AiMove | null) => {
-          worker.terminate();
-          if (!best) {
-            this.status = GameStatus.CHECKMATE;
-            this.winner = aiCamp === Camp.RED ? Camp.BLACK : Camp.RED;
-            this.saveState();
-            resolve(false);
-            return;
-          }
-          resolve(this.makeMove(best.from, best.to));
+          settle(() => {
+            worker.terminate();
+            if (!best) {
+              this.status = GameStatus.CHECKMATE;
+              this.winner = aiCamp === Camp.RED ? Camp.BLACK : Camp.RED;
+              this.saveState();
+              resolve(false);
+            } else {
+              resolve(this.makeMove(best.from, best.to));
+            }
+          });
         });
 
         worker.once('error', (err) => {
           console.error('[aiWorker] error, falling back to main thread:', err);
-          worker.terminate();
-          // 回退到主線程
-          this.fallbackAiMove(aiCamp).then(resolve);
+          settle(() => {
+            worker.terminate();
+            this.fallbackAiMove(aiCamp).then(resolve);
+          });
         });
 
+        // terminate() 也會觸發 exit，settled 保護不會重複 fallback
         worker.once('exit', (code) => {
           if (code !== 0) {
-            console.error(`[aiWorker] exited with code ${code}, falling back to main thread`);
-            this.fallbackAiMove(aiCamp).then(resolve);
+            settle(() => {
+              console.error(`[aiWorker] exited with code ${code}, falling back`);
+              this.fallbackAiMove(aiCamp).then(resolve);
+            });
           }
         });
 
       } catch (err) {
         console.error('[Worker Creation] failed, falling back to main thread:', err);
-        this.fallbackAiMove(aiCamp).then(resolve);
+        settle(() => this.fallbackAiMove(aiCamp).then(resolve));
       }
     });
   }
