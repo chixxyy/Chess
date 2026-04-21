@@ -43,23 +43,24 @@ export function configureSocket(io: Server) {
     console.log(`[socket] connected: ${socket.id}`);
 
     // ── INIT_GAME ─────────────────────────────────────────
-    socket.on(SocketEvents.INIT_GAME, (data?: { camp: Camp }) => {
-      // 立即清除可能存在的 AI 定時器
+    socket.on(SocketEvents.INIT_GAME, (data: any) => {
+      // 停止舊的 AI 計時器
       const existingTimeout = aiTimeouts.get(GAME_ID);
       if (existingTimeout) {
         clearTimeout(existingTimeout);
         aiTimeouts.delete(GAME_ID);
       }
 
-      const playerCamp = data?.camp || Camp.RED;
+      const playerCamp = data?.humanCamp || data?.camp || Camp.RED;
+      console.log(`[game] init => Player: ${playerCamp === Camp.RED ? 'RED' : 'BLACK'}`);
 
-      // 直接用 init() 初始化，避免 constructor 與 init 重複執行
       const game = new GameManager(GAME_ID);
       game.init(playerCamp);
       
-      // 如果玩家選黑方，AI 是紅方，紅方必須先行
       if (playerCamp === Camp.BLACK) {
+        console.log('[game] AI is RED, triggering first move...');
         game.makeAiMove(() => {
+          console.log('[game] AI first move done, broadcasting...');
           io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
         });
       }
@@ -143,6 +144,7 @@ export function configureSocket(io: Server) {
     socket.on(SocketEvents.RESIGN, () => {
       const game = games.get(GAME_ID);
       if (!game) return;
+      game.stopAi();
       game.winner = game.humanCamp === Camp.RED ? Camp.BLACK : Camp.RED;
       const over: GameOverPayload = { gameId: GAME_ID, winner: game.winner as Camp, reason: 'RESIGN' };
       io.to(GAME_ID).emit(SocketEvents.GAME_OVER, over);
@@ -155,7 +157,8 @@ export function configureSocket(io: Server) {
       const game = games.get(GAME_ID);
       if (!game) return;
       
-      // 悔棋瞬間必須立即取消待定的 AI 動作
+      // 悔棋瞬間必須立即取消待定的 AI 動作，並停止 AI 計算
+      game.stopAi();
       const existingTimeout = aiTimeouts.get(GAME_ID);
       if (existingTimeout) {
         clearTimeout(existingTimeout);

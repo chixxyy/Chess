@@ -25,8 +25,8 @@ const kvUrl = process.env.KV_REST_API_URL;
 const kvToken = process.env.KV_REST_API_TOKEN;
 
 if (!kvUrl || !kvToken) {
-  console.error('❌ [DB] CRITICAL ERROR: KV_REST_API_URL or KV_REST_API_TOKEN is missing!');
-  console.log('Available Env Keys:', Object.keys(process.env).filter(k => k.startsWith('KV_')));
+  console.warn('⚠️ [DB] WARNING: KV_REST_API_URL or KV_REST_API_TOKEN is missing!');
+  console.warn('⚠️ [DB] Running in Memory-Only mode. Game persistence will not work after restart.');
 }
 
 const kv = (kvUrl && kvToken) ? createClient({

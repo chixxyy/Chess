@@ -22,6 +22,7 @@ export class GameManager {
   public capturedPieces: { [Camp.RED]: PieceType[]; [Camp.BLACK]: PieceType[] } = { [Camp.RED]: [], [Camp.BLACK]: [] };
   public winner: Camp | 'DRAW' | null = null;
   public strategy: AiStrategy = AI_STRATEGIES[0];
+  private currentWorker: Worker | null = null;
 
   private history: {
     fen: string;
@@ -234,20 +235,40 @@ export class GameManager {
       }
 
       console.log(`[AI] Thinking... (Strategy: ${this.strategy.name})`);
-      const workerPath = path.join(__dirname, 'aiWorker.js');
       
+      const isTS = __filename.endsWith('.ts');
+      const ext = isTS ? '.ts' : '.js';
+      let workerPath = path.resolve(__dirname, `aiWorker${ext}`);
+      
+      console.log(`[AI] Environment: ${isTS ? 'Development' : 'Production'}`);
+      console.log(`[AI] Looking for worker at: ${workerPath}`);
+      
+      if (!require('fs').existsSync(workerPath)) {
+        console.error(`[AI] ERROR: Worker file not found at ${workerPath}`);
+        resolve(false);
+        return;
+      }
+
       try {
-        const worker = new Worker(workerPath, {
-          workerData: {
-            fen: this.fen,
-            camp: this.turn,
-            strategy: this.strategy,
-            moveCount: this.fullHistory.length
+        const worker = new Worker(
+          isTS 
+            ? `require('ts-node/register'); require(${JSON.stringify(workerPath)})` 
+            : workerPath,
+          {
+            eval: isTS,
+            workerData: {
+              fen: this.fen,
+              camp: this.turn,
+              strategy: this.strategy,
+              moveCount: this.fullHistory.length
+            }
           }
-        });
+        );
+        this.currentWorker = worker;
 
         worker.once('message', (best: AiMove | null) => {
           console.log('[AI] Message received');
+          this.currentWorker = null;
           worker.terminate();
           if (best) {
             const success = this.makeMove(best.from, best.to);
@@ -259,9 +280,18 @@ export class GameManager {
         });
 
         worker.on('error', (err) => {
-          console.error('[AI] Worker Error:', err);
+          console.error('[AI] Worker Error, falling back to main thread:', err);
+          this.currentWorker = null;
           worker.terminate();
-          resolve(false);
+          // 回退到主線程計算
+          const best = getBestMove(parseFEN(this.fen), this.turn, this.strategy, this.fullHistory.length);
+          if (best) {
+            this.makeMove(best.from, best.to);
+            if (onMove) onMove();
+            resolve(true);
+          } else {
+            resolve(false);
+          }
         });
 
         worker.on('exit', (code) => {
@@ -272,6 +302,14 @@ export class GameManager {
         resolve(false);
       }
     });
+  }
+
+  public stopAi() {
+    if (this.currentWorker) {
+      console.log('[AI] Stopping worker explicitly');
+      this.currentWorker.terminate();
+      this.currentWorker = null;
+    }
   }
 
 }
