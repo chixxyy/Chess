@@ -7,6 +7,7 @@ import {
   BoardState, Camp, PieceType,
   getLegalMoves, applyMove, isInCheck, getPiece
 } from '../../../shared';
+import { calculateBoardHash, applyMoveHash } from '../../../shared/src/zobrist';
 
 // ─── AI 作戰風格與權重定義 ───────────────────────────────────────────────
 
@@ -126,33 +127,39 @@ const PST: Record<string, number[][]> = {
   ]
 };
 
+// ─── 置換表 (Transposition Table) 定義 ──────────────────────────────────────
+
+enum TTFlag { EXACT = 0, ALPHA = 1, BETA = 2 }
+
+interface TTEntry {
+  depth: number;
+  score: number;
+  flag: TTFlag;
+  bestMove: { from: {x:number, y:number}, to: {x:number, y:number} } | null;
+}
+
+let transpositionTable = new Map<bigint, TTEntry>();
+
 function evaluate(board: BoardState, strategy: AiStrategy): number {
   let score = 0;
-  for (let yIdx = 0; yIdx < 10; yIdx++) {
-    for (let xIdx = 0; xIdx < 9; xIdx++) {
-      const p = board[yIdx][xIdx];
+  for (let y = 0; y < 10; y++) {
+    for (let x = 0; x < 9; x++) {
+      const p = board[y][x];
       if (!p) continue;
-      
       const isRed = p.camp === Camp.RED;
       let val = strategy.weights[p.type];
-
       score += isRed ? val : -val;
-
       const pstTable = PST[p.type];
       if (pstTable) {
-        const pstVal = isRed ? pstTable[yIdx][xIdx] : pstTable[9 - yIdx][8 - xIdx];
+        const pstVal = isRed ? pstTable[y][x] : pstTable[9 - y][8 - x];
         score += isRed ? pstVal : -pstVal;
       }
-
       if (p.type === PieceType.PAWN) {
-        val += isRed
-          ? (strategy.pawnBonus[yIdx]?.[xIdx] ?? 0)
-          : (strategy.pawnBonus[9 - yIdx]?.[8 - xIdx] ?? 0);
-        score += isRed ? val : -val;
+        const bonus = isRed ? (strategy.pawnBonus[y]?.[x] ?? 0) : (strategy.pawnBonus[9 - y]?.[8 - x] ?? 0);
+        score += isRed ? bonus : -bonus;
       }
-      
       if (strategy.name === '絕世魔王' || strategy.name === '萬卒齊發') {
-         const centerScore = (4 - Math.abs(4 - xIdx)) + (4.5 - Math.abs(4.5 - yIdx));
+         const centerScore = (4 - Math.abs(4 - x)) + (4.5 - Math.abs(4.5 - y));
          score += isRed ? centerScore * 5 : -centerScore * 5;
       }
     }
@@ -160,21 +167,21 @@ function evaluate(board: BoardState, strategy: AiStrategy): number {
   return score;
 }
 
-function sortMoves(board: BoardState, moves: {from: any, to: any}[], isMaximizing: boolean): any[] {
+function sortMovesWithPV(board: BoardState, moves: any[], isMaximizing: boolean, pvMove: any | null): any[] {
   return moves.map(m => {
     let weight = 0;
-    const attacker = getPiece(board, m.from);
-    const victim = getPiece(board, m.to);
-    
-    if (victim) {
-      const victimWeights: any = { k: 1000, r: 90, c: 45, n: 40, p: 10, b: 11, a: 11 };
-      const attackerWeights: any = { k: 1, r: 9, c: 4.5, n: 4, p: 1, b: 1, a: 1 };
-      weight += 100 + (victimWeights[victim.type] - attackerWeights[attacker?.type || 'p']);
+    const attacker = board[m.from.y][m.from.x];
+    const victim = board[m.to.y][m.to.x];
+    if (pvMove && m.from.x === pvMove.from.x && m.from.y === pvMove.from.y && 
+        m.to.x === pvMove.to.x && m.to.y === pvMove.to.y) {
+      weight = 2000000;
+    } else if (victim) {
+      const vVal = { k: 1000, r: 90, c: 45, n: 40, p: 10, b: 11, a: 11 }[victim.type] || 0;
+      const aVal = { k: 1, r: 9, c: 4.5, n: 4, p: 1, b: 1, a: 1 }[attacker?.type || 'p'] || 1;
+      weight = 10000 + (vVal * 10 - aVal);
+    } else {
+      weight = 10 - (Math.abs(4 - m.to.x) + Math.abs(4.5 - m.to.y));
     }
-
-    const centerDist = Math.abs(4 - m.to.x) + Math.abs(4.5 - m.to.y);
-    weight += (10 - centerDist);
-
     return { ...m, weight };
   }).sort((a, b) => b.weight - a.weight);
 }
@@ -182,7 +189,6 @@ function sortMoves(board: BoardState, moves: {from: any, to: any}[], isMaximizin
 function quiescenceSearch(board: BoardState, alpha: number, beta: number, camp: Camp, strategy: AiStrategy): number {
   const isRed = camp === Camp.RED;
   const standPat = evaluate(board, strategy);
-  
   if (isRed) {
     if (standPat >= beta) return beta;
     if (standPat > alpha) alpha = standPat;
@@ -190,31 +196,25 @@ function quiescenceSearch(board: BoardState, alpha: number, beta: number, camp: 
     if (standPat <= alpha) return alpha;
     if (standPat < beta) beta = standPat;
   }
-
-  const moves: AiMove[] = [];
+  const moves: any[] = [];
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const p = board[y][x];
-      if (!p || p.camp !== camp) continue;
-      const legal = getLegalMoves(board, {x, y});
-      for (const to of legal) {
-        if (getPiece(board, to)) {
-          moves.push({ from: {x, y}, to, score: 0 });
+      if (p && p.camp === camp) {
+        for (const to of getLegalMoves(board, {x, y})) {
+          if (board[to.y][to.x]) moves.push({ from: {x,y}, to });
         }
       }
     }
   }
-
   moves.sort((a, b) => {
-    const valA = strategy.weights[getPiece(board, a.to)!.type];
-    const valB = strategy.weights[getPiece(board, b.to)!.type];
-    return valB - valA;
+    const vA = strategy.weights[board[a.to.y][a.to.x]!.type];
+    const vB = strategy.weights[board[b.to.y][b.to.x]!.type];
+    return vB - vA;
   });
-
   for (const move of moves) {
     const nextBoard = applyMove(board, move.from, move.to);
     const score = quiescenceSearch(nextBoard, alpha, beta, isRed ? Camp.BLACK : Camp.RED, strategy);
-
     if (isRed) {
       if (score >= beta) return beta;
       if (score > alpha) alpha = score;
@@ -227,120 +227,109 @@ function quiescenceSearch(board: BoardState, alpha: number, beta: number, camp: 
 }
 
 function minimax(
-  board: BoardState,
-  depth: number,
-  alpha: number,
-  beta: number,
-  isMaximizing: boolean,
-  strategy: AiStrategy,
-  startTime: number,
-  timeLimit: number
+  board: BoardState, depth: number, alpha: number, beta: number,
+  isMaximizing: boolean, strategy: AiStrategy, startTime: number,
+  timeLimit: number, currentHash: bigint
 ): number {
-  if (depth === 0) {
-    return quiescenceSearch(board, alpha, beta, isMaximizing ? Camp.RED : Camp.BLACK, strategy);
+  const entry = transpositionTable.get(currentHash);
+  if (entry && entry.depth >= depth) {
+    if (entry.flag === TTFlag.EXACT) return entry.score;
+    if (entry.flag === TTFlag.ALPHA && entry.score <= alpha) return alpha;
+    if (entry.flag === TTFlag.BETA && entry.score >= beta) return beta;
   }
+  if (depth === 0) return quiescenceSearch(board, alpha, beta, isMaximizing ? Camp.RED : Camp.BLACK, strategy);
   if (Date.now() - startTime > timeLimit) return evaluate(board, strategy);
 
   const camp = isMaximizing ? Camp.RED : Camp.BLACK;
-  let hasAnyMove = false;
-
   const rawMoves: any[] = [];
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const p = board[y][x];
       if (p && p.camp === camp) {
-        const legals = getLegalMoves(board, {x, y});
-        for (const to of legals) rawMoves.push({from: {x,y}, to});
+        for (const to of getLegalMoves(board, {x,y})) rawMoves.push({from: {x,y}, to});
       }
     }
   }
-  const sorted = sortMoves(board, rawMoves, isMaximizing);
+  if (rawMoves.length === 0) return isInCheck(board, camp) ? (isMaximizing ? -100000 : 100000) : 0;
 
-  if (isMaximizing) {
-    let maxScore = -Infinity;
-    for (const move of sorted) {
-      hasAnyMove = true;
-      const newBoard = applyMove(board, move.from, move.to);
-      const score = minimax(newBoard, depth - 1, alpha, beta, false, strategy, startTime, timeLimit);
-      maxScore = Math.max(maxScore, score);
-      alpha = Math.max(alpha, score);
-      if (beta <= alpha) break;
+  const sorted = sortMovesWithPV(board, rawMoves, isMaximizing, entry?.bestMove);
+  const oldAlpha = alpha;
+  const oldBeta = beta;
+  let bestLocalMove = null;
+  let val = isMaximizing ? -Infinity : Infinity;
+
+  for (const move of sorted) {
+    const piece = board[move.from.y][move.from.x]!;
+    const captured = board[move.to.y][move.to.x];
+    const nextHash = applyMoveHash(currentHash, move.from.y * 9 + move.from.x, move.to.y * 9 + move.to.x, piece.type, piece.camp, captured?.type || null, captured?.camp || null);
+    const score = minimax(applyMove(board, move.from, move.to), depth - 1, alpha, beta, !isMaximizing, strategy, startTime, timeLimit, nextHash);
+    
+    if (isMaximizing) {
+      if (score > val) { val = score; bestLocalMove = move; }
+      alpha = Math.max(alpha, val);
+    } else {
+      if (score < val) { val = score; bestLocalMove = move; }
+      beta = Math.min(beta, val);
     }
-    return hasAnyMove ? maxScore : (isInCheck(board, camp) ? -100000 : 0);
-  } else {
-    let minScore = Infinity;
-    for (const move of sorted) {
-      hasAnyMove = true;
-      const newBoard = applyMove(board, move.from, move.to);
-      const score = minimax(newBoard, depth - 1, alpha, beta, true, strategy, startTime, timeLimit);
-      minScore = Math.min(minScore, score);
-      beta = Math.min(beta, score);
-      if (beta <= alpha) break;
-    }
-    return hasAnyMove ? minScore : (isInCheck(board, camp) ? 100000 : 0);
+    if (beta <= alpha) break;
   }
+
+  let flag = TTFlag.EXACT;
+  if (isMaximizing) {
+    if (val <= oldAlpha) flag = TTFlag.ALPHA;
+    else if (val >= beta) flag = TTFlag.BETA;
+  } else {
+    if (val >= oldBeta) flag = TTFlag.BETA;
+    else if (val <= alpha) flag = TTFlag.ALPHA;
+  }
+  transpositionTable.set(currentHash, { depth, score: val, flag, bestMove: bestLocalMove });
+  return val;
 }
 
 export function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy): AiMove | null {
   const isMaximizing = camp === Camp.RED;
   const startTime = Date.now();
+  const initialHash = calculateBoardHash(board, camp);
+  transpositionTable.clear();
   
-  let TIME_LIMIT = 8000;
-  if (strategy.level === '學者') TIME_LIMIT = 10000;
-  if (strategy.level === '大師') TIME_LIMIT = 12000;
-  if (strategy.level === '宗師') TIME_LIMIT = 15000;
-  if (strategy.level === '至尊') TIME_LIMIT = 20000;
+  let timeLimit = 8000;
+  if (strategy.level === '學者') timeLimit = 10000;
+  if (strategy.level === '大師') timeLimit = 12000;
+  if (strategy.level === '宗師') timeLimit = 15000;
+  if (strategy.level === '至尊') timeLimit = 20000;
   
-  let bestMove: AiMove | null = null;
   const initialMoves: any[] = [];
-
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const p = board[y][x];
-      if (!p || p.camp !== camp) continue;
-      const legalMoves = getLegalMoves(board, {x, y});
-      for (const to of legalMoves) {
-        initialMoves.push({ from: {x, y}, to });
+      if (p && p.camp === camp) {
+        for (const to of getLegalMoves(board, {x, y})) initialMoves.push({ from: {x,y}, to });
       }
     }
   }
-
   if (initialMoves.length === 0) return null;
 
-  const sortedMoves = sortMoves(board, initialMoves, isMaximizing);
-
-  let timeExceeded = false;
+  let bestMove: AiMove | null = null;
   for (let d = 1; d <= strategy.searchDepth; d++) {
+    const entry = transpositionTable.get(initialHash);
+    const sorted = sortMovesWithPV(board, initialMoves, isMaximizing, entry?.bestMove);
+    let currentBestMove = null;
     let currentBestScore = isMaximizing ? -Infinity : Infinity;
-    let currentBestMove: AiMove | null = null;
 
-    for (const move of sortedMoves) {
-      if (Date.now() - startTime > TIME_LIMIT) {
-        timeExceeded = true;
-        break;
-      }
-
-      const newBoard = applyMove(board, move.from, move.to);
-      const score = minimax(newBoard, d - 1, -Infinity, Infinity, !isMaximizing, strategy, startTime, TIME_LIMIT);
-      
+    for (const move of sorted) {
+      if (Date.now() - startTime > timeLimit) break;
+      const piece = board[move.from.y][move.from.x]!;
+      const captured = board[move.to.y][move.to.x];
+      const nextHash = applyMoveHash(initialHash, move.from.y * 9 + move.from.x, move.to.y * 9 + move.to.x, piece.type, piece.camp, captured?.type || null, captured?.camp || null);
+      const score = minimax(applyMove(board, move.from, move.to), d - 1, -Infinity, Infinity, !isMaximizing, strategy, startTime, timeLimit, nextHash);
       if (isMaximizing ? score > currentBestScore : score < currentBestScore) {
         currentBestScore = score;
         currentBestMove = { ...move, score };
       }
     }
-
-    if (!timeExceeded && currentBestMove) {
-      bestMove = currentBestMove;
-    } else if (timeExceeded) {
-      break;
-    }
-
-    if (Date.now() - startTime > TIME_LIMIT * 0.7) break;
+    if (Date.now() - startTime <= timeLimit && currentBestMove) bestMove = currentBestMove;
+    if (Math.abs(currentBestScore) > 90000 || Date.now() - startTime > timeLimit * 0.7) break;
   }
-
-  if (bestMove) {
-    bestMove.score += (Math.random() * 2 - 1);
-  }
-
+  if (bestMove) bestMove.score += (Math.random() * 2 - 1);
   return bestMove;
 }
