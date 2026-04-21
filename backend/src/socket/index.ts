@@ -59,7 +59,9 @@ export function configureSocket(io: Server) {
       
       // 如果玩家選黑方，AI 是紅方，紅方必須先行
       if (playerCamp === Camp.BLACK) {
-        game.makeAiMove();
+        game.makeAiMove(() => {
+          io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
+        });
       }
 
       games.set(GAME_ID, game);

@@ -226,103 +226,52 @@ export class GameManager {
     return true;
   }
 
-  /**
-   * 讓 AI 計算並執行一步棋，在 Worker Thread 中非同步執行
-   * - settled flag：防止 message/error/exit 事件競爭，確保 resolve 只執行一次
-   * - 超時保護：Worker 沉默超過上限，強制切換主線程，永不卡死
-   */
-  public makeAiMove(): Promise<boolean> {
-    return new Promise(async (resolve) => {
+  public makeAiMove(onMove?: () => void): Promise<boolean> {
+    return new Promise((resolve) => {
       if (this.status !== GameStatus.PLAYING && this.status !== GameStatus.CHECK) {
         resolve(false);
         return;
       }
 
-      const aiCamp = this.turn;
-      const maxWait = (this.strategy.searchDepth >= 9 ? 20000 : 15000) + 8000;
-
-      // settled flag：確保只 resolve 一次
-      let settled = false;
-      const settle = (fn: () => void) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(hardTimeout);
-        fn();
-      };
-
-      // 硬性超時：Worker 沉默就強制 fallback
-      const hardTimeout = setTimeout(() => {
-        settle(() => {
-          console.error(`[aiWorker] timeout after ${maxWait}ms, falling back to main thread`);
-          this.fallbackAiMove(aiCamp).then(resolve);
-        });
-      }, maxWait);
-
+      console.log(`[AI] Thinking... (Strategy: ${this.strategy.name})`);
+      const workerPath = path.join(__dirname, 'aiWorker.js');
+      
       try {
-        const isTS = __filename.endsWith('.ts');
-        const workerPath = path.join(__dirname, `aiWorker${isTS ? '.ts' : '.js'}`);
-
-        const worker = new Worker(
-          isTS
-            ? `require('ts-node/register'); require('tsconfig-paths/register'); require(${JSON.stringify(workerPath)})`
-            : workerPath,
-          {
-            eval: isTS,
-            workerData: { fen: this.fen, camp: aiCamp, strategy: this.strategy, moveCount: this.history.length }
+        const worker = new Worker(workerPath, {
+          workerData: {
+            fen: this.fen,
+            camp: this.turn,
+            strategy: this.strategy,
+            moveCount: this.fullHistory.length
           }
-        );
+        });
 
         worker.once('message', (best: AiMove | null) => {
-          settle(() => {
-            worker.terminate();
-            if (!best) {
-              this.status = GameStatus.CHECKMATE;
-              this.winner = aiCamp === Camp.RED ? Camp.BLACK : Camp.RED;
-              this.saveState();
-              resolve(false);
-            } else {
-              resolve(this.makeMove(best.from, best.to));
-            }
-          });
-        });
-
-        worker.once('error', (err) => {
-          console.error('[aiWorker] error, falling back to main thread:', err);
-          settle(() => {
-            worker.terminate();
-            this.fallbackAiMove(aiCamp).then(resolve);
-          });
-        });
-
-        // terminate() 也會觸發 exit，settled 保護不會重複 fallback
-        worker.once('exit', (code) => {
-          if (code !== 0) {
-            settle(() => {
-              console.error(`[aiWorker] exited with code ${code}, falling back`);
-              this.fallbackAiMove(aiCamp).then(resolve);
-            });
+          console.log('[AI] Message received');
+          worker.terminate();
+          if (best) {
+            const success = this.makeMove(best.from, best.to);
+            if (onMove) onMove();
+            resolve(success);
+          } else {
+            resolve(false);
           }
         });
 
+        worker.on('error', (err) => {
+          console.error('[AI] Worker Error:', err);
+          worker.terminate();
+          resolve(false);
+        });
+
+        worker.on('exit', (code) => {
+          if (code !== 0) console.error(`[AI] Worker exit code: ${code}`);
+        });
       } catch (err) {
-        console.error('[Worker Creation] failed, falling back to main thread:', err);
-        settle(() => this.fallbackAiMove(aiCamp).then(resolve));
+        console.error('[AI] Failed to start worker:', err);
+        resolve(false);
       }
     });
-  }
-
-  /**
-   * 主線程回退計算 (當 Worker 無法運作時)
-   */
-  private async fallbackAiMove(aiCamp: Camp): Promise<boolean> {
-    const best = getBestMove(this.board, aiCamp, this.strategy, this.history.length);
-    if (!best) {
-      this.status = GameStatus.CHECKMATE;
-      this.winner = aiCamp === Camp.RED ? Camp.BLACK : Camp.RED;
-      this.saveState();
-      return false;
-    }
-    return this.makeMove(best.from, best.to);
   }
 
 }
