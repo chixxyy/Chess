@@ -5,9 +5,9 @@
 
 import {
   BoardState, Camp, PieceType,
-  getLegalMoves, applyMove, isInCheck, getPiece
+  getLegalMoves, applyMove, isInCheck, getPiece,
+  calculateBoardHash, applyMoveHash
 } from '../../../shared';
-import { calculateBoardHash, applyMoveHash } from '../../../shared/src/zobrist';
 
 // ─── AI 作戰風格與權重定義 ───────────────────────────────────────────────
 
