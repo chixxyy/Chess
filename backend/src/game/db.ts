@@ -20,22 +20,33 @@ export interface GameState {
   lastUpdate: number;
 }
 
-const kv = createClient({
-  url: process.env.KV_REST_API_URL!,
-  token: process.env.KV_REST_API_TOKEN!,
-});
+// 增加防錯處理
+const kvUrl = process.env.KV_REST_API_URL;
+const kvToken = process.env.KV_REST_API_TOKEN;
+
+if (!kvUrl || !kvToken) {
+  console.error('❌ [DB] CRITICAL ERROR: KV_REST_API_URL or KV_REST_API_TOKEN is missing!');
+  console.log('Available Env Keys:', Object.keys(process.env).filter(k => k.startsWith('KV_')));
+}
+
+const kv = (kvUrl && kvToken) ? createClient({
+  url: kvUrl,
+  token: kvToken,
+}) : null;
 
 export const db = {
   async saveGame(state: GameState): Promise<void> {
+    if (!kv) return;
     try {
       await kv.set(`game:${state.id}`, state, { ex: 86400 });
-      console.log(`[DB] Game ${state.id} saved to Redis`);
+      // console.log(`[DB] Game ${state.id} saved to Redis`);
     } catch (err) {
       console.error('[DB] Failed to save game:', err);
     }
   },
 
   async loadGame(gameId: string): Promise<GameState | null> {
+    if (!kv) return null;
     try {
       const state = await kv.get<GameState>(`game:${gameId}`);
       if (state) {
