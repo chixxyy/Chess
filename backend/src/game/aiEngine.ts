@@ -286,7 +286,9 @@ function minimax(
     if (val >= oldBeta) flag = TTFlag.BETA;
     else if (val <= alpha) flag = TTFlag.ALPHA;
   }
-  transpositionTable.set(currentHash, { depth, score: val, flag, bestMove: bestLocalMove });
+  if (transpositionTable.size < 50000) {
+    transpositionTable.set(currentHash, { depth, score: val, flag, bestMove: bestLocalMove });
+  }
   return val;
 }
 
@@ -379,5 +381,6 @@ export function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy,
   // 5. 最後的小干擾，防止分數完全一樣時過於死板
   chosen.score += (Math.random() * 2 - 1);
   
+  transpositionTable.clear();
   return chosen;
 }
