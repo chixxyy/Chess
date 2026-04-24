@@ -307,7 +307,7 @@ watch(moveRejected, () => {
 
 // ─── 遊戲控制狀態 ─────────────────────────────────────────────────────────────
 
-const undoCount = ref(10);
+const undoCount = ref(3);
 const isUndoPending = ref(false); // 悖棋待機鎖，防止重複點擊
 
 const showResignConfirm = ref(false);
@@ -453,7 +453,7 @@ const statusClass = computed(() => ({
 // ─── 玩家動作 ──────────────────────────────────────────────────────────────
 
 function handleInitGame() {
-  undoCount.value = 10;
+  undoCount.value = 3;
   showResignConfirm.value = false;
   socketInit(selectedCamp.value);
 }
