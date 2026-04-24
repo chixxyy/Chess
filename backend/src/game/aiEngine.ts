@@ -296,7 +296,6 @@ export function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy,
   const isMaximizing = camp === Camp.RED;
   const startTime = Date.now();
   const initialHash = calculateBoardHash(board, camp);
-  transpositionTable.clear();
   
   let timeLimit = 8000;
   if (strategy.level === '學者') timeLimit = 10000;
@@ -347,7 +346,11 @@ export function getBestMove(board: BoardState, camp: Camp, strategy: AiStrategy,
       isMaximizing ? (curr.score > prev.score ? curr : prev) : (curr.score < prev.score ? curr : prev)
     );
     if (Math.abs(bestInIter.score) > 90000) break;
-    if (Date.now() - startTime > timeLimit * 0.7) break;
+    // 嚴格限時：如果超過 timeLimit 的 80%，立即停止搜尋，確保有時間回傳結果
+    if (Date.now() - startTime > timeLimit * 0.8) {
+      console.log(`[AI] Time limit reached at depth ${d}, returning best found.`);
+      break;
+    }
   }
 
   if (bestMoveCandidates.length === 0) return null;

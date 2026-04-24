@@ -280,18 +280,10 @@ export class GameManager {
         });
 
         worker.on('error', (err) => {
-          console.error('[AI] Worker Error, falling back to main thread:', err);
+          console.error('[AI] Worker Error:', err);
           this.currentWorker = null;
           worker.terminate();
-          // 回退到主線程計算
-          const best = getBestMove(parseFEN(this.fen), this.turn, this.strategy, this.fullHistory.length);
-          if (best) {
-            this.makeMove(best.from, best.to);
-            if (onMove) onMove();
-            resolve(true);
-          } else {
-            resolve(false);
-          }
+          resolve(false);
         });
 
         worker.on('exit', (code) => {

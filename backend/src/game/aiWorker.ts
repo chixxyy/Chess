@@ -16,7 +16,11 @@ const { fen, camp, strategy, moveCount } = workerData as {
   moveCount: number;
 };
 
-const board = parseFEN(fen);
-const best = getBestMove(board, camp, strategy, moveCount);
-
-parentPort.postMessage(best);
+try {
+  const board = parseFEN(fen);
+  const bestMove = getBestMove(board, camp, strategy, moveCount);
+  parentPort?.postMessage(bestMove);
+} catch (err) {
+  console.error('[aiWorker] Execution Error:', err);
+  parentPort?.postMessage(null);
+}
