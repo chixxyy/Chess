@@ -69,7 +69,6 @@ export function useChessStore() {
     if (style === '絕世魔王') return 'skin-boss';
     if (style === '萬卒齊發') return 'skin-pawn-king';
     if (style === '狂暴強襲') return 'skin-aggressive';
-    if (style === '鐵壁守備') return 'skin-defensive';
     if (style === '遠程砲戰') return 'skin-cannon';
     if (style === '詭變馬戰') return 'skin-knight';
     return 'skin-balanced';

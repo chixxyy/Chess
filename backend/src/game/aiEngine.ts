@@ -42,24 +42,6 @@ const STANDARD_PAWN_BONUS = [
 
 export const AI_STRATEGIES: AiStrategy[] = [
   {
-    name: '穩定平衡',
-    level: '高手',
-    weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 900, [PieceType.CANNON]: 450, [PieceType.KNIGHT]: 400, [PieceType.PAWN]: 100, [PieceType.BISHOP]: 110, [PieceType.ADVISOR]: 110 },
-    pawnBonus: STANDARD_PAWN_BONUS,
-    attackBonus: 10,
-    defenseBonus: 10,
-    searchDepth: 5
-  },
-  {
-    name: '鐵壁守備',
-    level: '學者',
-    weights: { [PieceType.KING]: 18000, [PieceType.ROOK]: 850, [PieceType.CANNON]: 400, [PieceType.KNIGHT]: 380, [PieceType.PAWN]: 80, [PieceType.BISHOP]: 300, [PieceType.ADVISOR]: 300 },
-    pawnBonus: STANDARD_PAWN_BONUS,
-    attackBonus: -5,
-    defenseBonus: 50,
-    searchDepth: 6
-  },
-  {
     name: '狂暴強襲',
     level: '大師',
     weights: { [PieceType.KING]: 10000, [PieceType.ROOK]: 1200, [PieceType.CANNON]: 550, [PieceType.KNIGHT]: 450, [PieceType.PAWN]: 200, [PieceType.BISHOP]: 80, [PieceType.ADVISOR]: 80 },

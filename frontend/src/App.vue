@@ -540,16 +540,6 @@ const {
 
 /* ─── 5 級榮譽性格氛圍系統 (5-Level Elite System) ─────────────────── */
 
-/* 1. 穩定平衡 (高手) - 翡翠綠 */
-.skin-balanced .red-glow { background: #10b981; opacity: 0.3; }
-.skin-balanced .blue-glow { background: #064e3b; opacity: 0.25; }
-.skin-balanced .strategy-tag { border-color: #22c55e; color: #86efac; background: rgba(6, 78, 59, 0.2); }
-
-/* 2. 鐵壁守備 (學者) - 琥珀橘 */
-.skin-defensive .red-glow { background: #f59e0b; opacity: 0.3; }
-.skin-defensive .blue-glow { background: #78350f; opacity: 0.25; }
-.skin-defensive .strategy-tag { border-color: #f59e0b; color: #fcd34d; background: rgba(120, 53, 15, 0.2); }
-
 /* 3. 狂暴強襲 (大師) - 魅影紫 */
 .skin-aggressive .red-glow { background: #a855f7; opacity: 0.3; }
 .skin-aggressive .blue-glow { background: #581c87; opacity: 0.25; }
