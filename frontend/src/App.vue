@@ -565,7 +565,13 @@ const {
 .skin-boss .blue-glow { background: #881337; opacity: 0.3; }
 .skin-boss .strategy-tag { border-color: #fb7185; color: #fb7185; background: rgba(136, 19, 55, 0.2); animation: boss-tag-pulse 2s infinite; }
 
-/* ────────────────────────────────────────────────────────── */
+:deep(.move-history-container) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 :deep(.move-history) {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -623,14 +629,14 @@ const {
   border-radius: 6px;
   margin-bottom: 4px;
 }
-:deep(.desktop-only-history) {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow-y: auto;
+:deep(.desktop-only) {
+  /* 使用預設的 grid 佈局 */
 }
 :deep(.mobile-only) {
   display: none;
+}
+:deep(.mobile-only-toggle) {
+  display: none !important;
 }
 
 :deep(.history-empty) {
@@ -991,16 +997,22 @@ const {
   }
 
   /* 7. 歷史紀錄 (手機版佈局) */
-  :deep(.move-history) {
+  :deep(.move-history-container) {
     grid-column: 1 / 5;
     grid-row: 3;
     width: 100%;
     margin-top: 2px;
+  }
+  
+  :deep(.move-history) {
     background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
   }
 
-  :deep(.desktop-only-history) {
-    display: none; /* 手機版主畫面不顯示完整清單 */
+  :deep(.desktop-only) {
+    display: none !important; /* 手機版主畫面不顯示完整清單 */
   }
 
   :deep(.mobile-only) {
@@ -1022,6 +1034,7 @@ const {
   }
 
   :deep(.mobile-only-toggle) {
+    display: inline-block !important; /* 手機版才顯示「查看全部」 */
     font-size: 0.6rem;
     color: #888;
     border: 1px solid rgba(255,255,255,0.1);
@@ -1036,59 +1049,63 @@ const {
     border-color: rgba(255, 255, 255, 0.3);
   }
 
-  /* 歷史紀錄彈窗樣式 */
-  :deep(.history-modal-overlay) {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.8);
-    backdrop-filter: blur(8px);
-    z-index: 200;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-
-  :deep(.history-modal-content) {
-    background: #1e1e2e;
-    width: 100%;
-    max-width: 400px;
-    max-height: 80vh;
-    border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.1);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-  }
-
-  :deep(.modal-header) {
-    padding: 16px;
-    background: rgba(255,255,255,0.03);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  :deep(.modal-header h3) { font-size: 1rem; color: #facc15; }
-  :deep(.close-btn) { 
-    background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; 
-  }
-
-  :deep(.modal-body) {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-  }
-
   .title { font-size: 0.9rem; }
   .app-header { padding: 6px 12px; }
   .check-text { font-size: 1.8rem; }
   .thinking-dots { top: 2px !important; right: 2px !important; }
 }
-
-
-
 </style>
 
+<style>
+/* 全局 / Teleport 彈窗樣式 */
+.history-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
 
+.history-modal-content {
+  background: #161622;
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: modal-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modal-pop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+  padding: 16px 20px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h3 { font-size: 1.1rem; color: #facc15; margin: 0; font-weight: 600; }
+.close-btn { 
+  background: none; border: none; color: #888; font-size: 1.8rem; cursor: pointer; line-height: 1; transition: color 0.2s;
+}
+.close-btn:hover { color: #fff; }
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+</style>

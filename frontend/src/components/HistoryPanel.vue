@@ -18,25 +18,23 @@
         </template>
 
         <!-- 電腦版：顯示完整清單 (手機版則隱藏，改由彈窗顯示) -->
-        <div class="desktop-only-history">
-          <template v-if="gameState?.fullHistory?.length">
-            <div
-              v-for="pairIdx in Math.ceil(gameState.fullHistory.length / 2)"
-              :key="pairIdx"
-              class="move-row"
-            >
-              <span class="move-num">{{ pairIdx }}.</span>
-              <span class="move-content red-text">
-                {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
-              </span>
-              <span class="move-content black-text">
-                {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
-              </span>
-            </div>
-          </template>
-          <div v-else class="history-empty">
-            等待對局開始...
+        <template v-if="gameState?.fullHistory?.length">
+          <div
+            v-for="pairIdx in Math.ceil(gameState.fullHistory.length / 2)"
+            :key="pairIdx"
+            class="move-row desktop-only"
+          >
+            <span class="move-num">{{ pairIdx }}.</span>
+            <span class="move-content red-text">
+              {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
+            </span>
+            <span class="move-content black-text">
+              {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
+            </span>
           </div>
+        </template>
+        <div v-else class="history-empty desktop-only">
+          等待對局開始...
         </div>
       </div>
     </div>
