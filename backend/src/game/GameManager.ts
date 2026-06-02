@@ -6,7 +6,7 @@ import {
 import { Worker } from 'worker_threads';
 import path from 'path';
 import { AiStrategy, AI_STRATEGIES, AiMove, getBestMove } from './aiEngine';
-import { db, GameState } from './db';
+import { GameState } from './db';
 
 // ─── GameManager ─────────────────────────────────────────────────────────────
 
@@ -124,9 +124,6 @@ export class GameManager {
     if (this.history.length > this.MAX_HISTORY) {
       this.history.shift();
     }
-
-    // 2. 異步同步到 Redis 雲端
-    db.saveGame(this.toState()).catch(err => console.error('[GameManager] Redis save failed:', err));
   }
 
   public undoMove(): boolean {

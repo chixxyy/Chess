@@ -14,54 +14,21 @@
     <main class="app-main">
       <!-- 左側：遊戲資訊 -->
       <aside class="info-panel">
-        <div class="player-card black-card" :class="{ 'turn-active': gameState?.turn === 'b' }">
-          <div class="player-icon black-solid-icon">卒</div>
-          <div>
-            <p class="player-name">
-              黑方 {{ (gameState?.humanCamp ?? selectedCamp) === Camp.BLACK ? '（玩家）' : '（AI）' }}
-            </p>
-            <p v-if="(gameState?.humanCamp ?? selectedCamp) === Camp.BLACK" class="player-sub">
-              後手 <span v-if="gameState?.isHumanTurn" class="active-tag">· 操作中</span>
-            </p>
-            <p v-else class="player-sub">
-              風格：<span class="strategy-tag">
-                {{ gameState?.currentAiStyle || '風格讀取中...' }}
-                <span v-if="gameState?.aiLevel" style="opacity: 0.7; margin-left: 4px;">· {{ gameState.aiLevel }}</span>
-              </span>
-            </p>
-          </div>
-        </div>
+        <PlayerCard side="b" />
 
         <div class="status-box" :class="statusClass">
           <p class="status-label">{{ statusText }}</p>
         </div>
 
-        <div class="player-card red-card" :class="{ 'turn-active': gameState?.turn === 'w' }">
-          <div class="player-icon red-solid-icon">兵</div>
-          <div>
-            <p class="player-name">
-              紅方 {{ (gameState?.humanCamp ?? selectedCamp) === Camp.RED ? '（玩家）' : '（AI）' }}
-            </p>
-            <p v-if="(gameState?.humanCamp ?? selectedCamp) === Camp.RED" class="player-sub">
-              先手 <span v-if="gameState?.isHumanTurn" class="active-tag">· 操作中</span>
-            </p>
-            <p v-else class="player-sub">
-              風格：<span class="strategy-tag">
-                {{ gameState?.currentAiStyle || '風格讀取中...' }}
-                <span v-if="gameState?.aiLevel" style="opacity: 0.7; margin-left: 4px;">· {{ gameState.aiLevel }}</span>
-              </span>
-            </p>
-          </div>
-        </div>
-
+        <PlayerCard side="w" />
 
         <div class="action-btns">
           <button
             class="btn btn-warning"
-          :disabled="!gameState || undoCount <= 0 || isUndoPending || (!gameState.isHumanTurn && !isGameOver)"
+            :disabled="!gameState || undoCount <= 0 || isUndoPending || (!gameState.isHumanTurn && !isGameOver)"
             @click="handleUndo"
           >
-            {{ isUndoPending ? '悔棋中...' : `悔棋 ( ${undoCount} )` }}
+            {{ isUndoPending ? '悔棋中...' : `悔棋(${undoCount})` }}
           </button>
 
           <button
@@ -88,7 +55,6 @@
           </Transition>
         </Teleport>
 
-
         <!-- 通用提示彈窗 -->
         <Teleport to="body">
           <Transition name="modal">
@@ -104,81 +70,7 @@
           </Transition>
         </Teleport>
 
-
-        <!-- 歷史紀錄 (手機端平舖最新一步 / 電腦端側邊欄) -->
-        <div class="move-history">
-          <p class="history-title" @click="toggleHistoryModal">
-            對局記錄 
-            <span class="mobile-only-toggle">查看全部</span>
-          </p>
-          
-          <div class="history-list">
-            <!-- 手機端：始終只顯示最新一步 (點擊開啟彈窗) -->
-            <template v-if="latestMovePair">
-              <div class="move-row latest-move-hint luxe-glow mobile-only" @click="toggleHistoryModal">
-                <span class="move-num">{{ latestMovePair.num }}.</span>
-                <span class="move-content red-text">{{ latestMovePair.red }}</span>
-                <span class="move-content black-text">{{ latestMovePair.black }}</span>
-              </div>
-            </template>
-
-            <!-- 電腦版：顯示完整清單 (手機版則隱藏，改由彈窗顯示) -->
-            <div class="desktop-only-history">
-              <template v-if="gameState?.fullHistory?.length">
-                <div
-                  v-for="pairIdx in Math.ceil(gameState.fullHistory.length / 2)"
-                  :key="pairIdx"
-                  class="move-row"
-                >
-                  <span class="move-num">{{ pairIdx }}.</span>
-                  <span class="move-content red-text">
-                    {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
-                  </span>
-                  <span class="move-content black-text">
-                    {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
-                  </span>
-                </div>
-              </template>
-              <div v-else class="history-empty">
-                等待對局開始...
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 手機端專用：歷史紀錄彈窗 -->
-        <Teleport to="body">
-          <Transition name="fade">
-            <div v-if="showHistoryModal" class="history-modal-overlay" @click.self="showHistoryModal = false">
-              <div class="history-modal-content">
-                <div class="modal-header">
-                  <h3>完整對局紀錄</h3>
-                  <button class="close-btn" @click="showHistoryModal = false">×</button>
-                </div>
-                <div class="modal-body history-list">
-                <template v-if="gameState?.fullHistory?.length">
-                  <div
-                    v-for="pairIdx in Math.ceil(gameState.fullHistory.length / 2)"
-                    :key="pairIdx"
-                    class="move-row"
-                  >
-                    <span class="move-num">{{ pairIdx }}.</span>
-                    <span class="move-content red-text">
-                      {{ gameState.fullHistory[(pairIdx - 1) * 2] }}
-                    </span>
-                    <span class="move-content black-text">
-                      {{ gameState.fullHistory[(pairIdx - 1) * 2 + 1] || '' }}
-                    </span>
-                  </div>
-                </template>
-                <div v-else class="history-empty">
-                  暫無對局紀錄
-                </div>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
+        <HistoryPanel />
 
       </aside>
 
@@ -226,9 +118,6 @@
              <div class="check-text">⚠ 將軍！</div>
           </div>
         </Transition>
-
-
-
       </section>
 
       <!-- 右側：被吃掉的棋子 -->
@@ -277,232 +166,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue';
 import ChessBoard from './components/ChessBoard.vue';
 import ChessPiece from './components/ChessPiece.vue';
-import { useSocket } from './composables/useSocket';
-import { Camp, parseFEN, GameStatus, applyMove } from '@chinese-chess/shared';
-import type { Position, BoardState } from '@chinese-chess/shared';
+import PlayerCard from './components/PlayerCard.vue';
+import HistoryPanel from './components/HistoryPanel.vue';
+import { useChessStore } from './composables/useChessStore';
+import { Camp, GameStatus } from '@chinese-chess/shared';
 
-
-const { isConnected, gameState, gameOver, moveRejected, sendMove, initGame: socketInit, resign: socketResign, undoMove: socketUndo } = useSocket();
-
-// ─── 樂觀更新 ──────────────────────────────────────────────────────────────
-// 玩家走棋時立刻在本地模擬結果，不等 server 回應
-const optimisticBoard = ref<BoardState | null>(null);
-const optimisticLastMove = ref<Position[] | null>(null);
-
-// Server 確認後清除樂觀狀態
-watch(gameState, () => {
-  optimisticBoard.value = null;
-  optimisticLastMove.value = null;
-  isUndoPending.value = false;
-});
-
-// Server 拒絕時立刻回滾
-watch(moveRejected, () => {
-  optimisticBoard.value = null;
-  optimisticLastMove.value = null;
-});
-
-// ─── 遊戲控制狀態 ─────────────────────────────────────────────────────────────
-
-const undoCount = ref(3);
-const isUndoPending = ref(false); // 悖棋待機鎖，防止重複點擊
-
-const showResignConfirm = ref(false);
-const historyRef = ref<HTMLElement | null>(null);
-const selectedCamp = ref<Camp>(Camp.RED);
-const alertMessage = ref('');
-
-
-
-const isGameOver = computed(() =>
-  gameOver.value !== null ||
-  gameState.value?.status === GameStatus.CHECKMATE
-);
-
-
-
-// ─── 棋盤狀態 ──────────────────────────────────────────────────────────────
-
-// 優先顯示樂觀更新的棋盤，server 確認後切換回 gameState
-const currentBoard = computed<BoardState | null>(() => {
-  if (optimisticBoard.value) return optimisticBoard.value;
-  if (!gameState.value) return null;
-  return parseFEN(gameState.value.fen);
-});
-
-const lastMovePair = computed<Position[] | null>(() => {
-  if (optimisticLastMove.value) return optimisticLastMove.value;
-  const lm = gameState.value?.lastMove;
-  if (!lm) return null;
-  return [lm.from, lm.to];
-});
-
-const themeClass = computed(() => {
-  const style = gameState.value?.currentAiStyle;
-  if (style === '絕世魔王') return 'skin-boss';
-  if (style === '萬卒齊發') return 'skin-pawn-king';
-  if (style === '狂暴強襲') return 'skin-aggressive';
-  if (style === '鐵壁守備') return 'skin-defensive';
-  if (style === '遠程砲戰') return 'skin-cannon';
-  if (style === '詭變馬戰') return 'skin-knight';
-  return 'skin-balanced';
-});
-
-// ─── 遊戲歷史記錄 ──────────────────────────────────────────────────────────
-const showHistoryModal = ref(false);
-const toggleHistoryModal = () => {
-  showHistoryModal.value = !showHistoryModal.value;
-};
-
-// 取得最新的一對步法（用於手機摺疊模式）
-const latestMovePair = computed(() => {
-  if (!gameState.value?.fullHistory?.length) return null;
-  const history = gameState.value.fullHistory;
-  const pairIdx = Math.ceil(history.length / 2);
-  return {
-    num: pairIdx,
-    red: history[(pairIdx - 1) * 2],
-    black: history[(pairIdx - 1) * 2 + 1] || ''
-  };
-});
-
-watch(() => gameState.value?.fullHistory, () => {
-  nextTick(() => {
-    if (historyRef.value) {
-      historyRef.value.scrollTop = historyRef.value.scrollHeight;
-    }
-  });
-}, { deep: true });
-
-// 遊戲結束時（原本在此播放音效）
-watch(gameOver, (val) => {
-  // Sound removed
-});
-
-
-
-// ─── 勝負提示 ──────────────────────────────────────────────────────────────
-
-const gameOverMsg = computed<string | null>(() => {
-  if (!gameOver.value) return null;
-  const { winner: overWinner, reason } = gameOver.value;
-  // 優先從 gameState 拿更準確的 winner，拿不到再用 event 的
-  const winner = gameState.value?.winner || overWinner;
-  
-  const isWinner = winner === (gameState.value?.humanCamp || selectedCamp.value);
-  const winName = winner === Camp.RED ? '紅方' : '黑方';
-
-  if (reason === 'RESIGN') {
-    return isWinner ? `對方已認輸，${winName}勝！` : `你已認輸，${winName}勝！`;
-  }
-  
-  if (winner === 'DRAW') return '平局！';
-  return isWinner ? `恭喜！你贏了！(${winName}勝利)` : `遺憾！${winName}獲勝！將軍！`;
-});
-
-
-const gameOverIcon = computed(() => {
-  if (!gameOver.value) return '';
-  const winner = gameState.value?.winner || gameOver.value.winner;
-  const isWinner = winner === (gameState.value?.humanCamp || selectedCamp.value);
-  return isWinner ? '🏆' : '🤖';
-});
-
-
-// ─── 狀態文字 ──────────────────────────────────────────────────────────────
-
-const statusText = computed(() => {
-  if (!gameState.value) return '等待開始';
-  switch (gameState.value.status) {
-    case GameStatus.WAITING:
-      return '等待開始';
-    case GameStatus.PLAYING:
-      return gameState.value.isHumanTurn ? '您的回合' : 'AI 思考中...';
-    case GameStatus.CHECK:
-      return gameState.value.isHumanTurn ? '⚠ 您被將軍！' : '⚠ AI 被將軍！';
-    case GameStatus.CHECKMATE:
-      return '將死！';
-    default:
-      return '遊戲中';
-  }
-});
-
-// ─── 吃子排序 ──────────────────────────────────────────────────────────────
-
-const PIECE_ORDER: Record<string, number> = { k: 7, r: 6, c: 5, n: 4, b: 3, a: 2, p: 1 };
-
-const sortedCapturedRed = computed(() => {
-  if (!gameState.value?.capturedPieces) return [];
-  return [...gameState.value.capturedPieces.red].sort((a, b) => PIECE_ORDER[b] - PIECE_ORDER[a]);
-});
-
-const sortedCapturedBlack = computed(() => {
-  if (!gameState.value?.capturedPieces) return [];
-  return [...gameState.value.capturedPieces.black].sort((a, b) => PIECE_ORDER[b] - PIECE_ORDER[a]);
-});
-
-const statusClass = computed(() => ({
-  'status-red': gameState.value?.turn === Camp.RED,
-  'status-black': gameState.value?.turn === Camp.BLACK,
-  'status-check': gameState.value?.status === GameStatus.CHECK,
-}));
-
-// ─── 玩家動作 ──────────────────────────────────────────────────────────────
-
-function handleInitGame() {
-  undoCount.value = 3;
-  showResignConfirm.value = false;
-  socketInit(selectedCamp.value);
-}
-
-
-
-function confirmResign() {
-  showResignConfirm.value = false;
-  socketResign();
-}
-
-function handleUndo() {
-  if (!gameState.value) return;
-
-  // 檢查是否已經有走棋紀錄
-  if (!gameState.value.fullHistory || gameState.value.fullHistory.length === 0) {
-    alertMessage.value = '對局尚未開始，還不能悔棋喔！';
-    return;
-  }
-
-  if (undoCount.value > 0) {
-    const isHuman = gameState.value.turn === (gameState.value.humanCamp || selectedCamp.value);
-    if (isHuman || isGameOver.value) {
-      undoCount.value--;
-      isUndoPending.value = true; // 立刻鎖定按鈕，視覺零延遲
-      socketUndo();
-
-      // 10 秒安全超時：若斷線導致 server 無回應，自動解鎖防止永久卡死
-      setTimeout(() => {
-        if (isUndoPending.value) {
-          isUndoPending.value = false;
-          undoCount.value++; // 退還次數，這次悔棋視為未完成
-        }
-      }, 10000);
-    }
-  }
-}
-
-
-
-
-function onPlayerMove(from: Position, to: Position) {
-  // 樂觀更新：立刻在本地模擬走棋結果，視覺上零延遲
-  if (currentBoard.value) {
-    optimisticBoard.value = applyMove(currentBoard.value, from, to);
-    optimisticLastMove.value = [from, to];
-  }
-  sendMove('global-game', from, to);
-}
+const {
+  isConnected,
+  gameState,
+  undoCount,
+  isUndoPending,
+  showResignConfirm,
+  selectedCamp,
+  alertMessage,
+  isGameOver,
+  currentBoard,
+  lastMovePair,
+  themeClass,
+  gameOverMsg,
+  gameOverIcon,
+  statusText,
+  sortedCapturedRed,
+  sortedCapturedBlack,
+  statusClass,
+  handleInitGame,
+  confirmResign,
+  handleUndo,
+  onPlayerMove
+} = useChessStore();
 </script>
 
 <style scoped>
@@ -873,7 +566,7 @@ function onPlayerMove(from: Position, to: Position) {
 .skin-boss .strategy-tag { border-color: #fb7185; color: #fb7185; background: rgba(136, 19, 55, 0.2); animation: boss-tag-pulse 2s infinite; }
 
 /* ────────────────────────────────────────────────────────── */
-.move-history {
+:deep(.move-history) {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
@@ -886,17 +579,14 @@ function onPlayerMove(from: Position, to: Position) {
   box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
 }
 
-
-
-
-.history-title {
+:deep(.history-title) {
   font-size: 0.7rem;
   color: #666;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
 }
-.history-list {
+:deep(.history-list) {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -906,26 +596,24 @@ function onPlayerMove(from: Position, to: Position) {
 }
 
 /* 自定義滾動條 - 強化可見度 */
-.history-list::-webkit-scrollbar {
+:deep(.history-list::-webkit-scrollbar) {
   width: 8px; 
 }
-.history-list::-webkit-scrollbar-track {
+:deep(.history-list::-webkit-scrollbar-track) {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
 }
-.history-list::-webkit-scrollbar-thumb {
+:deep(.history-list::-webkit-scrollbar-thumb) {
   background: rgba(255, 255, 255, 0.2); 
   border-radius: 4px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-.history-list::-webkit-scrollbar-thumb:hover {
+:deep(.history-list::-webkit-scrollbar-thumb:hover) {
   background: rgba(255, 255, 255, 0.4);
 }
 
-
-
-.move-row {
+:deep(.move-row) {
   display: grid;
   grid-template-columns: 40px 1fr 1fr;
   gap: 8px;
@@ -935,18 +623,17 @@ function onPlayerMove(from: Position, to: Position) {
   border-radius: 6px;
   margin-bottom: 4px;
 }
-.desktop-only-history {
+:deep(.desktop-only-history) {
   display: flex;
   flex-direction: column;
   flex: 1;
   overflow-y: auto;
 }
-.mobile-only {
+:deep(.mobile-only) {
   display: none;
 }
 
-
-.history-empty {
+:deep(.history-empty) {
   flex: 1;
   display: flex;
   align-items: center;
@@ -1237,7 +924,7 @@ function onPlayerMove(from: Position, to: Position) {
   }
 
   /* 2. 統一頂部四個單元格的風格 */
-  .black-card, .red-card, .action-btns .btn {
+  :deep(.black-card), :deep(.red-card), .action-btns .btn {
     grid-row: 1;
     height: 36px !important; /* 統一高度 */
     background: rgba(255, 255, 255, 0.05) !important;
@@ -1251,10 +938,12 @@ function onPlayerMove(from: Position, to: Position) {
     box-shadow: none !important;
     transition: all 0.2s;
     min-width: 0;
+    font-size: 0.7rem !important;
+    white-space: nowrap;
   }
 
   /* 當前執子方的特殊高亮 (背景呼吸燈效果) */
-  .player-card.turn-active {
+  :deep(.player-card.turn-active) {
     border-color: rgba(250, 204, 21, 0.4) !important;
     animation: breathing-glow 2s ease-in-out infinite;
     background: rgba(250, 204, 21, 0.15) !important;
@@ -1265,12 +954,12 @@ function onPlayerMove(from: Position, to: Position) {
     50% { box-shadow: 0 0 15px rgba(250, 204, 21, 0.4); border-color: rgba(250, 204, 21, 0.6); }
   }
 
-  .black-card { grid-column: 1; flex-direction: row !important; }
-  .red-card   { grid-column: 2; flex-direction: row !important; }
+  :deep(.black-card) { grid-column: 1; flex-direction: row !important; }
+  :deep(.red-card)   { grid-column: 2; flex-direction: row !important; }
 
   /* 隱藏 Icon、副標題與原本的三個點 */
-  .player-icon, .player-sub, .thinking-dots { display: none !important; }
-  .player-name { 
+  :deep(.player-icon), :deep(.player-sub), :deep(.thinking-dots) { display: none !important; }
+  :deep(.player-name) { 
     font-size: 0.7rem; 
     font-weight: 600; 
     white-space: nowrap;
@@ -1302,7 +991,7 @@ function onPlayerMove(from: Position, to: Position) {
   }
 
   /* 7. 歷史紀錄 (手機版佈局) */
-  .move-history {
+  :deep(.move-history) {
     grid-column: 1 / 5;
     grid-row: 3;
     width: 100%;
@@ -1310,15 +999,15 @@ function onPlayerMove(from: Position, to: Position) {
     background: transparent !important;
   }
 
-  .desktop-only-history {
+  :deep(.desktop-only-history) {
     display: none; /* 手機版主畫面不顯示完整清單 */
   }
 
-  .mobile-only {
+  :deep(.mobile-only) {
     display: grid !important;
   }
 
-  .history-title {
+  :deep(.history-title) {
     cursor: pointer;
     display: flex;
     justify-content: space-between;
@@ -1326,18 +1015,29 @@ function onPlayerMove(from: Position, to: Position) {
     padding: 2px 4px;
     color: #facc15 !important;
     font-size: 0.75rem;
+    transition: color 0.2s;
+  }
+  :deep(.history-title:hover) {
+    color: #fef08a !important;
   }
 
-  .mobile-only-toggle {
+  :deep(.mobile-only-toggle) {
     font-size: 0.6rem;
     color: #888;
     border: 1px solid rgba(255,255,255,0.1);
     padding: 1px 4px;
     border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  :deep(.mobile-only-toggle:hover) {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
   }
 
   /* 歷史紀錄彈窗樣式 */
-  .history-modal-overlay {
+  :deep(.history-modal-overlay) {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.8);
@@ -1349,7 +1049,7 @@ function onPlayerMove(from: Position, to: Position) {
     padding: 20px;
   }
 
-  .history-modal-content {
+  :deep(.history-modal-content) {
     background: #1e1e2e;
     width: 100%;
     max-width: 400px;
@@ -1362,7 +1062,7 @@ function onPlayerMove(from: Position, to: Position) {
     box-shadow: 0 20px 50px rgba(0,0,0,0.5);
   }
 
-  .modal-header {
+  :deep(.modal-header) {
     padding: 16px;
     background: rgba(255,255,255,0.03);
     border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -1370,12 +1070,12 @@ function onPlayerMove(from: Position, to: Position) {
     justify-content: space-between;
     align-items: center;
   }
-  .modal-header h3 { font-size: 1rem; color: #facc15; }
-  .close-btn { 
+  :deep(.modal-header h3) { font-size: 1rem; color: #facc15; }
+  :deep(.close-btn) { 
     background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; 
   }
 
-  .modal-body {
+  :deep(.modal-body) {
     flex: 1;
     overflow-y: auto;
     padding: 16px;

@@ -1,13 +1,10 @@
 import { Server, Socket } from 'socket.io';
 import { SocketEvents, Camp } from '../../../shared/index';
 import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload } from '../../../shared/index';
+import { gameService } from '../game/GameService';
 import { GameManager } from '../game/GameManager';
-import { db } from '../game/db';
 
-const games = new Map<string, GameManager>();
 const GAME_ID = 'global-game';
-const aiTimeouts = new Map<string, NodeJS.Timeout>();
-
 
 function buildUpdate(game: GameManager): GameUpdatedPayload {
   return {
@@ -29,172 +26,74 @@ function buildUpdate(game: GameManager): GameUpdatedPayload {
   };
 }
 
-
-
-
-
-
-
-
-
-
 export function configureSocket(io: Server) {
   io.on('connection', (socket: Socket) => {
     console.log(`[socket] connected: ${socket.id}`);
 
     // ── INIT_GAME ─────────────────────────────────────────
-    socket.on(SocketEvents.INIT_GAME, (data: any) => {
-      // 停止舊的 AI 計時器
-      const existingTimeout = aiTimeouts.get(GAME_ID);
-      if (existingTimeout) {
-        clearTimeout(existingTimeout);
-        aiTimeouts.delete(GAME_ID);
-      }
-
+    socket.on(SocketEvents.INIT_GAME, async (data: any) => {
       const playerCamp = data?.humanCamp || data?.camp || Camp.RED;
       console.log(`[game] init => Player: ${playerCamp === Camp.RED ? 'RED' : 'BLACK'}`);
 
-      const game = new GameManager(GAME_ID);
-      game.init(playerCamp);
-      
-      if (playerCamp === Camp.BLACK) {
-        console.log('[game] AI is RED, triggering first move...');
-        game.makeAiMove(() => {
-          console.log('[game] AI first move done, broadcasting...');
-          io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
-        });
-      }
-
-      games.set(GAME_ID, game);
       socket.join(GAME_ID);
-      io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
-      console.log(`[game] init => fen: ${game.fen}`);
+
+      await gameService.initGame(GAME_ID, playerCamp, (game) => {
+        io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
+      });
     });
 
     // ── MAKE_MOVE ─────────────────────────────────────────
-    socket.on(SocketEvents.MAKE_MOVE, (payload: MakeMovePayload) => {
-      const game = games.get(payload.gameId);
-      if (!game) {
-        socket.emit(SocketEvents.MOVE_REJECTED, { message: 'Game not found' } as ErrorPayload);
-        return;
-      }
-
-      const success = game.makeMove(payload.from, payload.to);
-      if (!success) {
-        socket.emit(SocketEvents.MOVE_REJECTED, { message: 'Illegal move' } as ErrorPayload);
-        return;
-      }
-
-      // 廣播人類的這步棋
-      io.to(payload.gameId).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
-
-      // 如果遊戲已結束（贏家已在 makeMove 裡設好，直接用 game.winner）
-      if (game.status === 'CHECKMATE') {
-        if (game.winner === 'DRAW') {
-          const over: GameOverPayload = { gameId: game.gameId, winner: 'DRAW' as any, reason: 'DRAW' };
-          io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
-        } else {
-          const over: GameOverPayload = { gameId: game.gameId, winner: game.winner as Camp, reason: 'CHECKMATE' };
-          io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
-        }
-        return;
-      }
-
-      // AI 回應
-      if (!game.isHumanTurn) {
-        if (aiTimeouts.has(payload.gameId)) {
-          clearTimeout(aiTimeouts.get(payload.gameId));
-        }
-
-        const timeout = setTimeout(async () => {
-          aiTimeouts.delete(payload.gameId);
-
-          // makeAiMove 現在在 Worker Thread 執行，不阻塞事件循環
-          const aiSuccess = await game.makeAiMove();
-          if (!aiSuccess) {
-            const over: GameOverPayload = {
-              gameId: game.gameId,
-              winner: game.humanCamp,
-              reason: 'AI_STALEMATE'
-            };
-            io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
-            return;
-          }
-
+    socket.on(SocketEvents.MAKE_MOVE, async (payload: MakeMovePayload) => {
+      await gameService.makeMove(
+        payload.gameId,
+        payload.from,
+        payload.to,
+        (game) => {
           io.to(payload.gameId).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
-
-          if (game.status === 'CHECKMATE') {
-            if (game.winner === 'DRAW') {
-              const over: GameOverPayload = { gameId: game.gameId, winner: 'DRAW' as any, reason: 'DRAW' };
-              io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
-            } else {
-              const winner = game.turn === Camp.RED ? Camp.BLACK : Camp.RED;
-              const over: GameOverPayload = { gameId: game.gameId, winner, reason: 'CHECKMATE' };
-              io.to(payload.gameId).emit(SocketEvents.GAME_OVER, over);
-            }
-          }
-        }, 300);
-
-        aiTimeouts.set(payload.gameId, timeout);
-      }
-
+        },
+        (overPayload) => {
+          io.to(payload.gameId).emit(SocketEvents.GAME_OVER, overPayload);
+        },
+        (errorMsg) => {
+          socket.emit(SocketEvents.MOVE_REJECTED, { message: errorMsg } as ErrorPayload);
+        }
+      );
     });
 
     // ── RESIGN ────────────────────────────────────────────
-    socket.on(SocketEvents.RESIGN, () => {
-      const game = games.get(GAME_ID);
-      if (!game) return;
-      game.stopAi();
-      game.winner = game.humanCamp === Camp.RED ? Camp.BLACK : Camp.RED;
-      const over: GameOverPayload = { gameId: GAME_ID, winner: game.winner as Camp, reason: 'RESIGN' };
-      io.to(GAME_ID).emit(SocketEvents.GAME_OVER, over);
-      io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
+    socket.on(SocketEvents.RESIGN, async () => {
+      await gameService.resign(
+        GAME_ID,
+        (game) => {
+          io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
+        },
+        (overPayload) => {
+          io.to(GAME_ID).emit(SocketEvents.GAME_OVER, overPayload);
+        }
+      );
     });
-
 
     // ── UNDO_MOVE ─────────────────────────────────────────
-    socket.on(SocketEvents.UNDO_MOVE, () => {
-      const game = games.get(GAME_ID);
-      if (!game) return;
-      
-      // 悔棋瞬間必須立即取消待定的 AI 動作，並停止 AI 計算
-      game.stopAi();
-      const existingTimeout = aiTimeouts.get(GAME_ID);
-      if (existingTimeout) {
-        clearTimeout(existingTimeout);
-        aiTimeouts.delete(GAME_ID);
-      }
-
-      const success = game.undoMove();
-      if (success) {
-        io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
-      } else {
-        socket.emit(SocketEvents.MOVE_REJECTED, { message: 'Cannot undo' } as ErrorPayload);
-      }
+    socket.on(SocketEvents.UNDO_MOVE, async () => {
+      await gameService.undoMove(
+        GAME_ID,
+        (game) => {
+          io.to(GAME_ID).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
+        },
+        (errorMsg) => {
+          socket.emit(SocketEvents.MOVE_REJECTED, { message: errorMsg } as ErrorPayload);
+        }
+      );
     });
 
-
     // ── RESTORE_GAME ──────────────────────────────────────────
-    // 斷線重連後，前端發送此事件請求恢復棋局狀態
     socket.on(SocketEvents.RESTORE_GAME, async () => {
-      let game = games.get(GAME_ID);
-
-      // 如果內存找不到，嘗試從 Redis 恢復
-      if (!game) {
-        const savedState = await db.loadGame(GAME_ID);
-        if (savedState) {
-          game = GameManager.fromState(savedState);
-          games.set(GAME_ID, game);
-          console.log(`[RESTORE] Global game successfully restored from Redis`);
-        }
-      }
+      const game = await gameService.restoreGame(GAME_ID);
 
       if (game) {
-        // 重新加入房間並推送當前狀態
         socket.join(GAME_ID);
         socket.emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
 
-        // 如果遊戲已結束，也補發 GAME_OVER 事件
         if (game.status === 'CHECKMATE' && game.winner) {
           const over: GameOverPayload = {
             gameId: game.gameId,
