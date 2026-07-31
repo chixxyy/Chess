@@ -2,6 +2,13 @@ import { Camp, Position, Move, GameStatus, PieceType } from './types';
 
 export const SocketEvents = {
   INIT_GAME: 'init_game',
+  CREATE_ROOM: 'create_room',
+  JOIN_ROOM: 'join_room',
+  ROOM_CREATED: 'room_created',
+  ROOM_JOINED: 'room_joined',
+  ROOM_ERROR: 'room_error',
+  PLAYER_JOINED: 'player_joined',
+  PLAYER_LEFT: 'player_left',
   MAKE_MOVE: 'make_move',
   REQUEST_AI: 'request_ai',
   RESIGN: 'resign',
@@ -9,9 +16,24 @@ export const SocketEvents = {
   MOVE_REJECTED: 'move_rejected',
   GAME_OVER: 'game_over',
   UNDO_MOVE: 'undo_move',
-  RESTORE_GAME: 'restore_game'  // 斷線重連後請求恢復棋局
+  RESTORE_GAME: 'restore_game'
 } as const;
 
+export interface CreateRoomPayload {
+  camp?: Camp;
+  roomId?: string;
+}
+
+export interface JoinRoomPayload {
+  roomId: string;
+}
+
+export interface RoomJoinedPayload {
+  roomId: string;
+  camp: Camp;
+  mode: 'PVE' | 'PVP';
+  playersCount: number;
+}
 
 export interface MakeMovePayload {
   gameId: string;
@@ -35,10 +57,9 @@ export interface GameUpdatedPayload {
   winner: Camp | 'DRAW' | null;
   currentAiStyle: string;
   aiLevel: string;
+  mode?: 'PVE' | 'PVP';
+  playersCount?: number;
 }
-
-
-
 
 export interface GameOverPayload {
   gameId: string;
@@ -49,3 +70,4 @@ export interface GameOverPayload {
 export interface ErrorPayload {
   message: string;
 }
+

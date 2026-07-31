@@ -17,6 +17,8 @@ export class GameManager {
   public turn: Camp;
   public status: GameStatus;
   public humanCamp: Camp;
+  public mode: 'PVE' | 'PVP' = 'PVE';
+  public players: { redSocketId?: string; blackSocketId?: string } = {};
   public lastMove: Move | null = null;
   public fullHistory: string[] = [];
   public capturedPieces: { [Camp.RED]: PieceType[]; [Camp.BLACK]: PieceType[] } = { [Camp.RED]: [], [Camp.BLACK]: [] };
@@ -51,8 +53,9 @@ export class GameManager {
     this.strategy = AI_STRATEGIES[0];
   }
 
-  public init(humanCamp: Camp = Camp.RED) {
+  public init(humanCamp: Camp = Camp.RED, mode: 'PVE' | 'PVP' = 'PVE') {
     this.humanCamp = humanCamp;
+    this.mode = mode;
     this.board = parseFEN(INITIAL_FEN);
     this.fen = INITIAL_FEN;
     this.turn = Camp.RED;

@@ -3,7 +3,7 @@
     :class="[
       'player-card', 
       isRed ? 'red-card' : 'black-card',
-      { 'turn-active': gameState?.turn === side }
+      { 'turn-active': gameState?.turn === targetCamp }
     ]"
   >
     <div :class="['player-icon', isRed ? 'red-solid-icon' : 'black-solid-icon']">
@@ -11,19 +11,36 @@
     </div>
     <div>
       <p class="player-name">
-        <span class="desktop-text">{{ isRed ? '紅方' : '黑方' }} {{ isHuman ? '（玩家）' : '（AI）' }}</span>
-        <span class="mobile-text">{{ isRed ? '紅' : '黑' }}{{ isHuman ? '(我)' : '(AI)' }}</span>
+        <span class="desktop-text">{{ isRed ? '紅方' : '黑方' }} {{ isMe ? '（我）' : (isPvp ? '（對手）' : '（AI）') }}</span>
+        <span class="mobile-text">{{ isRed ? '紅' : '黑' }}{{ isMe ? '(我)' : (isPvp ? '(對手)' : '(AI)') }}</span>
       </p>
-      <p v-if="isHuman" class="player-sub">
-        {{ isRed ? '先手' : '後手' }}
-        <span v-if="gameState?.isHumanTurn" class="active-tag">· 操作中</span>
-      </p>
-      <p v-else class="player-sub">
-        風格：<span class="strategy-tag">
-          {{ gameState?.currentAiStyle || '讀取中...' }}
-          <span v-if="gameState?.aiLevel" style="opacity: 0.7; margin-left: 4px;">· {{ gameState.aiLevel }}</span>
-        </span>
-      </p>
+
+      <!-- PVP 模式顯示 -->
+      <template v-if="isPvp">
+        <p v-if="isMe" class="player-sub">
+          {{ isRed ? '先手' : '後手' }}
+          <span v-if="gameState?.turn === playerCamp" class="active-tag">· 操作中</span>
+        </p>
+        <p v-else class="player-sub">
+          {{ isRed ? '先手' : '後手' }}
+          <span v-if="(gameState?.playersCount ?? 1) >= 2" class="active-tag">· 已連線</span>
+          <span v-else style="color: #facc15;">⏳ 等待連線...</span>
+        </p>
+      </template>
+
+      <!-- PVE 模式顯示 -->
+      <template v-else>
+        <p v-if="isMe" class="player-sub">
+          {{ isRed ? '先手' : '後手' }}
+          <span v-if="gameState?.isHumanTurn" class="active-tag">· 操作中</span>
+        </p>
+        <p v-else class="player-sub">
+          風格：<span class="strategy-tag">
+            {{ gameState?.currentAiStyle || '讀取中...' }}
+            <span v-if="gameState?.aiLevel" style="opacity: 0.7; margin-left: 4px;">· {{ gameState.aiLevel }}</span>
+          </span>
+        </p>
+      </template>
     </div>
   </div>
 </template>
@@ -37,14 +54,15 @@ const props = defineProps<{
   side: 'w' | 'b';
 }>();
 
-const { gameState, selectedCamp } = useChessStore();
+const { gameState, playerCamp, gameMode } = useChessStore();
 
 const isRed = computed(() => props.side === 'w');
 const targetCamp = computed(() => isRed.value ? Camp.RED : Camp.BLACK);
 
-const isHuman = computed(() => {
-  const humanCamp = gameState.value?.humanCamp ?? selectedCamp.value;
-  return humanCamp === targetCamp.value;
+const isPvp = computed(() => gameMode.value === 'PVP');
+
+const isMe = computed(() => {
+  return playerCamp.value === targetCamp.value;
 });
 </script>
 

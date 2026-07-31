@@ -4,10 +4,13 @@
     <div class="bg-glow blue-glow" />
 
     <header class="app-header">
-      <h1 class="title">象棋對戰 <span class="ai-badge">AI 對戰</span></h1>
+      <h1 class="title">象棋對戰 <span class="ai-badge">{{ gameMode === 'PVP' ? '👥 好友對戰' : '🤖 AI 對戰' }}</span></h1>
+      <div v-if="gameState?.gameId && gameState?.mode === 'PVP'" class="room-id-badge" @click="copyRoomId">
+        🔑 房號: <strong>{{ gameState.gameId }}</strong> (點擊複製)
+      </div>
       <div class="conn-badge" :class="{ connected: isConnected }">
         <span class="conn-dot" />
-        {{ isConnected ? 'AI 已連線' : 'AI 連線中...' }}
+        {{ isConnected ? '線上已連線' : '連線中...' }}
       </div>
     </header>
 
@@ -24,8 +27,16 @@
 
         <div class="action-btns">
           <button
+            v-if="gameState"
+            class="btn btn-secondary mb-1"
+            @click="handleResetToMenu"
+          >
+            重新選擇模式
+          </button>
+
+          <button
             class="btn btn-warning"
-            :disabled="!gameState || undoCount <= 0 || isUndoPending || (!gameState.isHumanTurn && !isGameOver)"
+            :disabled="!gameState || undoCount <= 0 || isUndoPending || (gameState.mode !== 'PVP' && !gameState.isHumanTurn && !isGameOver)"
             @click="handleUndo"
           >
             {{ isUndoPending ? '悔棋中...' : `悔棋(${undoCount})` }}
@@ -78,26 +89,92 @@
       <section class="board-section">
         <div v-if="!gameState" class="pre-game-overlay">
           <div class="overlay-content">
-            <p class="overlay-title">選擇您的陣營</p>
-            <div class="camp-selector">
-              <button
-                class="camp-btn red-btn"
-                :class="{ active: selectedCamp === Camp.RED }"
-                @click="selectedCamp = Camp.RED"
+            <div class="mode-tabs">
+              <button 
+                class="mode-tab-btn" 
+                :class="{ active: gameMode === 'PVE' }" 
+                @click="gameMode = 'PVE'"
               >
-                <span class="p-icon">兵</span> 執紅先手
+                🤖 AI 對戰 (PVE)
               </button>
-              <button
-                class="camp-btn black-btn"
-                :class="{ active: selectedCamp === Camp.BLACK }"
-                @click="selectedCamp = Camp.BLACK"
+              <button 
+                class="mode-tab-btn" 
+                :class="{ active: gameMode === 'PVP' }" 
+                @click="gameMode = 'PVP'"
               >
-                <span class="p-icon">卒</span> 執黑後手
+                👥 好友對戰 (PVP)
               </button>
             </div>
-            <button class="btn btn-primary start-btn" @click="handleInitGame">
-              開始遊戲
-            </button>
+
+            <!-- PVE 選單 -->
+            <div v-if="gameMode === 'PVE'" class="pvp-sub-section">
+              <p class="overlay-title">選擇您的陣營</p>
+              <div class="camp-selector">
+                <button
+                  class="camp-btn red-btn"
+                  :class="{ active: selectedCamp === Camp.RED }"
+                  @click="selectedCamp = Camp.RED"
+                >
+                  <span class="p-icon">兵</span> 執紅先手
+                </button>
+                <button
+                  class="camp-btn black-btn"
+                  :class="{ active: selectedCamp === Camp.BLACK }"
+                  @click="selectedCamp = Camp.BLACK"
+                >
+                  <span class="p-icon">卒</span> 執黑後手
+                </button>
+              </div>
+              <button class="btn btn-primary start-btn" @click="handleInitGame">
+                開始單人對戰
+              </button>
+            </div>
+
+            <!-- PVP 選單 -->
+            <div v-else class="pvp-panel">
+              <div class="pvp-sub-section">
+                <p class="overlay-title mb-2">建立對戰房間</p>
+                <div class="camp-selector mb-3">
+                  <button
+                    class="camp-btn red-btn"
+                    :class="{ active: selectedCamp === Camp.RED }"
+                    @click="selectedCamp = Camp.RED"
+                  >
+                    <span class="p-icon">兵</span> 我執紅方
+                  </button>
+                  <button
+                    class="camp-btn black-btn"
+                    :class="{ active: selectedCamp === Camp.BLACK }"
+                    @click="selectedCamp = Camp.BLACK"
+                  >
+                    <span class="p-icon">卒</span> 我執黑方
+                  </button>
+                </div>
+                <button class="btn btn-primary start-btn" @click="handleCreateRoom">
+                  建立好友對戰房
+                </button>
+              </div>
+
+              <div class="pvp-divider">或</div>
+
+              <div class="pvp-sub-section">
+                <p class="overlay-title mb-2">加入好友房間</p>
+                <div class="room-input-group mb-3">
+                  <input
+                    v-model="inputRoomId"
+                    type="text"
+                    placeholder="請輸入 6 位數房間號碼"
+                    class="room-input"
+                    maxlength="10"
+                    @keyup.enter="handleJoinRoom"
+                  />
+                  <button class="btn btn-success" @click="handleJoinRoom">
+                    加入
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -105,10 +182,10 @@
           v-if="currentBoard"
           :board="currentBoard"
           :current-turn="gameState?.turn ?? Camp.RED"
-          :human-camp="gameState?.humanCamp ?? selectedCamp"
-          :flipped="(gameState?.humanCamp ?? selectedCamp) === Camp.BLACK"
+          :human-camp="playerCamp"
+          :flipped="playerCamp === Camp.BLACK"
           :last-move="lastMovePair"
-          :disabled="!gameState || isGameOver || gameState.turn !== (gameState?.humanCamp ?? selectedCamp)"
+          :disabled="!gameState || isGameOver || gameState.turn !== playerCamp"
           @move="onPlayerMove"
         />
 
@@ -180,6 +257,10 @@ const {
   isUndoPending,
   showResignConfirm,
   selectedCamp,
+  playerCamp,
+  gameMode,
+  inputRoomId,
+  currentRoomInfo,
   alertMessage,
   isGameOver,
   currentBoard,
@@ -192,10 +273,20 @@ const {
   sortedCapturedBlack,
   statusClass,
   handleInitGame,
+  handleResetToMenu,
+  handleCreateRoom,
+  handleJoinRoom,
   confirmResign,
   handleUndo,
   onPlayerMove
 } = useChessStore();
+
+function copyRoomId() {
+  if (gameState.value?.gameId) {
+    navigator.clipboard.writeText(gameState.value.gameId);
+    alertMessage.value = `房號 [ ${gameState.value.gameId} ] 已複製到剪貼簿！快分享給好友吧～`;
+  }
+}
 </script>
 
 <style scoped>
@@ -271,6 +362,20 @@ const {
   letter-spacing: 0.5px;
 }
 
+.room-id-badge {
+  font-size: 0.85rem;
+  background: rgba(212, 163, 115, 0.15);
+  color: var(--accent-color);
+  border: 1px dashed var(--accent-color);
+  padding: 4px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.room-id-badge:hover {
+  background: rgba(212, 163, 115, 0.3);
+}
+
 .conn-badge {
   display: flex;
   align-items: center;
@@ -320,8 +425,8 @@ const {
 .info-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.5vh;
-  width: 20%; /* 使用百分比而非固定像素 */
+  gap: 24px; /* 加大元件間距 */
+  width: 20%;
   min-width: 260px;
   max-width: 340px;
   height: 90%;
@@ -329,12 +434,11 @@ const {
   padding-bottom: 20px;
 }
 
-
 /* ─── 吃子顯示區 (右側) ───────────────────────── */
 .captured-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.5vh;
+  gap: 24px; /* 加大元件間距 */
   width: 20%;
   min-width: 260px;
   max-width: 340px;
@@ -672,19 +776,21 @@ const {
   border-radius: 8px;
   z-index: 20;
   color: #f5e6c8;
-  padding: 24px;
+  padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-y: auto;
 }
 
 .overlay-content {
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 12px;
+  width: 100%;
 }
 
 .overlay-title {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   font-family: 'Noto Serif TC', serif;
   letter-spacing: 2px;
@@ -692,7 +798,7 @@ const {
 
 .camp-selector {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   justify-content: center;
 }
 
@@ -700,25 +806,25 @@ const {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 20px 24px;
+  gap: 8px;
+  padding: 12px 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid transparent;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s;
   color: #888;
-  width: 140px;
+  width: 120px;
 }
 
 .camp-btn .p-icon {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: bold;
 }
 
@@ -738,13 +844,97 @@ const {
 }
 
 .start-btn {
-  font-size: 1.1rem;
-  padding: 12px 32px;
+  font-size: 1rem;
+  padding: 10px 24px;
   align-self: center;
 }
 
-.pre-game-overlay p {
-  white-space: nowrap;
+/* Margin Utilities */
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 16px; }
+.mb-3 { margin-bottom: 20px; }
+.mb-4 { margin-bottom: 24px; }
+
+.mode-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.mode-tab-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: #aaa;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.mode-tab-btn.active {
+  background: var(--accent-color);
+  color: #0d0d1a;
+  box-shadow: 0 0 10px rgba(212, 163, 115, 0.4);
+}
+
+.pvp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+}
+.pvp-sub-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.pvp-divider {
+  font-size: 0.85rem;
+  color: #888;
+  position: relative;
+  margin: 4px 0;
+}
+.room-input-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.room-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 0.95rem;
+  text-align: center;
+  letter-spacing: 2px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.room-input:focus {
+  border-color: var(--accent-color);
+}
+.btn-success {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-success:hover {
+  background: #059669;
 }
 
 
@@ -903,8 +1093,8 @@ const {
     /* 頂部四格對等分，下方棋盤與紀錄全寬 */
     grid-template-columns: repeat(4, 1fr);
     grid-template-rows: auto auto auto auto;
-    gap: 10px;
-    padding: 8px;
+    gap: 20px 8px; /* 增加垂直間距，避免上下元件黏在一起 */
+    padding: 16px 12px;
     width: 100%;
     align-items: start;
   }
@@ -983,7 +1173,7 @@ const {
     grid-column: 1 / 5;
     grid-row: 2;
     width: 98vw !important;
-    margin: 2px auto;
+    margin: 12px auto; /* 增加棋盤上下的 margin */
   }
 
   /* 7. 歷史紀錄 (手機版佈局) */
@@ -991,7 +1181,7 @@ const {
     grid-column: 1 / 5;
     grid-row: 3;
     width: 100%;
-    margin-top: 2px;
+    margin-top: 12px; /* 避免黏在棋盤下方 */
   }
   
   :deep(.move-history) {
@@ -1043,6 +1233,33 @@ const {
   .app-header { padding: 6px 12px; }
   .check-text { font-size: 1.8rem; }
   .thinking-dots { top: 2px !important; right: 2px !important; }
+
+  /* PVP Panel RWD adjustments */
+  .camp-selector {
+    gap: 12px;
+  }
+  .camp-btn {
+    width: 120px;
+    padding: 16px 12px;
+  }
+  .camp-btn .p-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+  .start-btn {
+    width: 100%;
+  }
+  .room-input-group {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .room-input {
+    width: 100%;
+  }
+  .btn-success {
+    width: 100%;
+  }
 }
 </style>
 

@@ -13,6 +13,8 @@ const selectedCamp = ref<Camp>(Camp.RED);
 const alertMessage = ref('');
 const optimisticBoard = ref<BoardState | null>(null);
 const optimisticLastMove = ref<Position[] | null>(null);
+const gameMode = ref<'PVE' | 'PVP'>('PVE');
+const inputRoomId = ref('');
 
 const PIECE_ORDER: Record<string, number> = { k: 7, r: 6, c: 5, n: 4, b: 3, a: 2, p: 1 };
 
@@ -22,7 +24,12 @@ export function useChessStore() {
     gameState,
     gameOver,
     moveRejected,
+    currentRoomInfo,
+    roomErrorMsg,
+    playerJoinedNotice,
     initGame: socketInit,
+    createRoom: socketCreateRoom,
+    joinRoom: socketJoinRoom,
     resign: socketResign,
     undoMove: socketUndo,
     sendMove: socketSendMove
@@ -34,10 +41,27 @@ export function useChessStore() {
   });
 
   // Server 確認後清除樂觀狀態
-  watch(gameState, () => {
+  watch(gameState, (state) => {
     optimisticBoard.value = null;
     optimisticLastMove.value = null;
     isUndoPending.value = false;
+    if (state?.mode) {
+      gameMode.value = state.mode;
+    }
+  });
+
+  // 錯誤提示
+  watch(roomErrorMsg, (msg) => {
+    if (msg) {
+      alertMessage.value = msg;
+    }
+  });
+
+  // 玩家加入提示
+  watch(playerJoinedNotice, (msg) => {
+    if (msg) {
+      alertMessage.value = msg;
+    }
   });
 
   // Server 拒絕時立刻回滾
@@ -50,6 +74,10 @@ export function useChessStore() {
     gameOver.value !== null ||
     gameState.value?.status === GameStatus.CHECKMATE
   );
+
+  const playerCamp = computed<Camp>(() => {
+    return currentRoomInfo.value?.camp || gameState.value?.humanCamp || selectedCamp.value;
+  });
 
   const currentBoard = computed<BoardState | null>(() => {
     if (optimisticBoard.value) return optimisticBoard.value;
@@ -90,7 +118,7 @@ export function useChessStore() {
     const { winner: overWinner, reason } = gameOver.value;
     const winner = gameState.value?.winner || overWinner;
     
-    const isWinner = winner === (gameState.value?.humanCamp || selectedCamp.value);
+    const isWinner = winner === playerCamp.value;
     const winName = winner === Camp.RED ? '紅方' : '黑方';
 
     if (reason === 'RESIGN') {
@@ -104,18 +132,27 @@ export function useChessStore() {
   const gameOverIcon = computed(() => {
     if (!gameOver.value) return '';
     const winner = gameState.value?.winner || gameOver.value.winner;
-    const isWinner = winner === (gameState.value?.humanCamp || selectedCamp.value);
-    return isWinner ? '🏆' : '🤖';
+    const isWinner = winner === playerCamp.value;
+    return isWinner ? '🏆' : '⚔️';
   });
 
   const statusText = computed(() => {
     if (!gameState.value) return '等待開始';
+    if (gameState.value.mode === 'PVP' && (gameState.value.playersCount ?? 1) < 2) {
+      return '⏳ 等待好友加入...';
+    }
     switch (gameState.value.status) {
       case GameStatus.WAITING:
         return '等待開始';
       case GameStatus.PLAYING:
+        if (gameState.value.mode === 'PVP') {
+          return gameState.value.turn === playerCamp.value ? '您的回合 (請下棋)' : '對手思考中...';
+        }
         return gameState.value.isHumanTurn ? '您的回合' : 'AI 思考中...';
       case GameStatus.CHECK:
+        if (gameState.value.mode === 'PVP') {
+          return gameState.value.turn === playerCamp.value ? '⚠ 您被將軍！' : '⚠ 對手被將軍！';
+        }
         return gameState.value.isHumanTurn ? '⚠ 您被將軍！' : '⚠ AI 被將軍！';
       case GameStatus.CHECKMATE:
         return '將死！';
@@ -147,9 +184,30 @@ export function useChessStore() {
     socketInit(selectedCamp.value);
   }
 
+  function handleResetToMenu() {
+    gameState.value = null;
+    currentRoomInfo.value = null;
+  }
+
+  function handleCreateRoom() {
+    undoCount.value = 3;
+    showResignConfirm.value = false;
+    socketCreateRoom(selectedCamp.value);
+  }
+
+  function handleJoinRoom() {
+    if (!inputRoomId.value.trim()) {
+      alertMessage.value = '請輸入房號';
+      return;
+    }
+    undoCount.value = 3;
+    showResignConfirm.value = false;
+    socketJoinRoom(inputRoomId.value.trim());
+  }
+
   function confirmResign() {
     showResignConfirm.value = false;
-    socketResign();
+    socketResign(gameState.value?.gameId);
   }
 
   function handleUndo() {
@@ -161,11 +219,11 @@ export function useChessStore() {
     }
 
     if (undoCount.value > 0) {
-      const isHuman = gameState.value.turn === (gameState.value.humanCamp || selectedCamp.value);
+      const isHuman = gameState.value.turn === playerCamp.value;
       if (isHuman || isGameOver.value) {
         undoCount.value--;
         isUndoPending.value = true;
-        socketUndo();
+        socketUndo(gameState.value.gameId);
 
         setTimeout(() => {
           if (isUndoPending.value) {
@@ -178,12 +236,19 @@ export function useChessStore() {
   }
 
   function onPlayerMove(from: Position, to: Position) {
+    if (!gameState.value) return;
+
+    // PVP 回合權限提示
+    if (gameState.value.mode === 'PVP' && gameState.value.turn !== playerCamp.value) {
+      alertMessage.value = '現在是對手的回合，請等待對手下棋！';
+      return;
+    }
+
     if (currentBoard.value) {
       optimisticBoard.value = applyMove(currentBoard.value, from, to);
       optimisticLastMove.value = [from, to];
     }
-    // send move to socket
-    socketSendMove('global-game', from, to);
+    socketSendMove(gameState.value.gameId, from, to);
   }
 
   return {
@@ -195,6 +260,10 @@ export function useChessStore() {
     showResignConfirm,
     showHistoryModal,
     selectedCamp,
+    playerCamp,
+    gameMode,
+    inputRoomId,
+    currentRoomInfo,
     alertMessage,
     isGameOver,
     currentBoard,
@@ -208,8 +277,12 @@ export function useChessStore() {
     sortedCapturedBlack,
     statusClass,
     handleInitGame,
+    handleResetToMenu,
+    handleCreateRoom,
+    handleJoinRoom,
     confirmResign,
     handleUndo,
     onPlayerMove
   };
 }
+
