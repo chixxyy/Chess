@@ -5,12 +5,12 @@ import type { GameUpdatedPayload, GameOverPayload, MakeMovePayload, Position, Ro
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const socket = io(backendUrl, {
-  transports: ['websocket'],
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
-  timeout: 20000
+  timeout: 20000,
+  autoConnect: true
 });
 
 const isConnected = ref(socket.connected);
