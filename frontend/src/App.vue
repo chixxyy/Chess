@@ -31,15 +31,20 @@
             class="btn btn-secondary mb-1"
             @click="handleResetToMenu"
           >
-            重新選擇模式
+            <span class="desktop-text">重新選擇模式</span>
           </button>
 
           <button
             class="btn btn-warning"
-            :disabled="!gameState || undoCount <= 0 || isUndoPending || (gameState.mode !== 'PVP' && !gameState.isHumanTurn && !isGameOver)"
+            :disabled="!gameState || gameState.mode === 'PVP' || gameMode === 'PVP' || undoCount <= 0 || isUndoPending || (!gameState.isHumanTurn && !isGameOver)"
             @click="handleUndo"
           >
-            {{ isUndoPending ? '悔棋中...' : `悔棋(${undoCount})` }}
+            <span v-if="gameState?.mode === 'PVP' || gameMode === 'PVP'">
+              <span class="desktop-text">PVP不可悔棋</span>
+              <span class="mobile-text">禁悔棋</span>
+            </span>
+            <span v-else-if="isUndoPending">悔棋中...</span>
+            <span v-else>悔棋({{ undoCount }})</span>
           </button>
 
           <button
@@ -1107,11 +1112,11 @@ function copyRoomId() {
 
   .app-main {
     display: grid;
-    /* 頂部四格對等分，下方棋盤與紀錄全寬 */
-    grid-template-columns: repeat(4, 1fr);
+    /* 頂部五格對等分，下方棋盤與紀錄全寬 */
+    grid-template-columns: repeat(5, 1fr);
     grid-template-rows: auto auto auto auto;
-    gap: 20px 8px; /* 增加垂直間距，避免上下元件黏在一起 */
-    padding: 16px 12px;
+    gap: 16px 4px; /* 五格專用間距 */
+    padding: 12px 6px;
     width: 100%;
     align-items: start;
   }
@@ -1126,7 +1131,7 @@ function copyRoomId() {
     display: none;
   }
 
-  /* 2. 統一頂部四個單元格的風格 */
+  /* 2. 統一頂部五個單元格的風格 */
   :deep(.black-card), :deep(.red-card), .action-btns .btn {
     grid-row: 1;
     height: 36px !important; /* 統一高度 */
@@ -1136,12 +1141,12 @@ function copyRoomId() {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    padding: 0 4px !important;
+    padding: 0 2px !important;
     margin: 0 !important;
     box-shadow: none !important;
     transition: all 0.2s;
     min-width: 0;
-    font-size: 0.7rem !important;
+    font-size: 0.65rem !important;
     white-space: nowrap;
   }
 
@@ -1163,14 +1168,14 @@ function copyRoomId() {
   /* 隱藏 Icon、副標題與原本的三個點 */
   :deep(.player-icon), :deep(.player-sub), :deep(.thinking-dots) { display: none !important; }
   :deep(.player-name) { 
-    font-size: 0.7rem; 
+    font-size: 0.65rem; 
     font-weight: 600; 
     white-space: nowrap;
     text-align: center;
     color: #ccc;
   }
 
-  /* 4. 控制按鈕 (第三格與第四格) */
+  /* 4. 控制按鈕 (第三格至第五格) */
   .action-btns {
     display: contents;
   }
@@ -1185,9 +1190,14 @@ function copyRoomId() {
     color: #f87171 !important;
   }
 
+  .action-btns .btn-secondary {
+    grid-column: 5;
+    color: #cbd5e1 !important;
+  }
+
   /* 5. 棋盤核心 (置中全寬) */
   .board-section {
-    grid-column: 1 / 5;
+    grid-column: 1 / 6;
     grid-row: 2;
     width: 98vw !important;
     margin: 12px auto; /* 增加棋盤上下的 margin */
@@ -1195,7 +1205,7 @@ function copyRoomId() {
 
   /* 7. 歷史紀錄 (手機版佈局) */
   :deep(.move-history-container) {
-    grid-column: 1 / 5;
+    grid-column: 1 / 6;
     grid-row: 3;
     width: 100%;
     margin-top: 12px; /* 避免黏在棋盤下方 */

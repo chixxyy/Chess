@@ -158,6 +158,11 @@ export class GameService {
     const game = this.games.get(gameId);
     if (!game) return;
 
+    if (game.mode === 'PVP') {
+      onRejected('PVP 模式下不可悔棋');
+      return;
+    }
+
     game.stopAi();
     this.clearAiTimeout(gameId);
 

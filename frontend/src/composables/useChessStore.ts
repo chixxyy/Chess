@@ -223,6 +223,11 @@ export function useChessStore() {
   function handleUndo() {
     if (!gameState.value) return;
 
+    if (gameState.value.mode === 'PVP' || gameMode.value === 'PVP') {
+      alertMessage.value = '好友對戰模式下不可悔棋！';
+      return;
+    }
+
     if (!gameState.value.fullHistory || gameState.value.fullHistory.length === 0) {
       alertMessage.value = '對局尚未開始，還不能悔棋喔！';
       return;
