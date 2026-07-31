@@ -1110,7 +1110,24 @@ function copyRoomId() {
   }
 
   .app-header {
-    padding: 10px 16px;
+    padding: 8px 10px;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .ai-badge {
+    display: none !important;
+  }
+
+  .room-id-badge {
+    font-size: 0.7rem !important;
+    padding: 2px 6px !important;
+    white-space: nowrap;
+  }
+
+  .conn-badge {
+    font-size: 0.7rem !important;
+    white-space: nowrap;
   }
 
   .app-main {
