@@ -31,7 +31,7 @@
             class="btn btn-secondary mb-1"
             @click="handleResetToMenu"
           >
-            <span class="desktop-text">重新選擇模式</span>
+            <span class="mobile-text">重選模式</span>
           </button>
 
           <button
