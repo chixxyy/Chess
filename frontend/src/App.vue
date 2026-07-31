@@ -8,9 +8,29 @@
       <div v-if="gameState?.gameId && gameState?.mode === 'PVP'" class="room-id-badge" @click="copyRoomId">
         🔑 房號: <strong>{{ gameState.gameId }}</strong> (點擊複製)
       </div>
-      <div class="conn-badge" :class="{ connected: isConnected }">
+      <div 
+        class="conn-badge" 
+        :class="{ 
+          connected: isConnected && (gameMode !== 'PVP' || !gameState || (gameState.playersCount >= 2 && (!opponentStatus || (opponentStatus.isOnline && opponentStatus.isVisible)))),
+          disconnected: gameMode === 'PVP' && gameState && (gameState.playersCount >= 2) && opponentStatus && (!opponentStatus.isOnline || !opponentStatus.isVisible),
+          waiting: gameMode === 'PVP' && gameState && (gameState.playersCount < 2)
+        }"
+      >
         <span class="conn-dot" />
-        {{ isConnected ? '線上已連線' : '連線中...' }}
+        <template v-if="gameMode === 'PVP' && gameState">
+          <span v-if="(gameState.playersCount ?? 1) < 2" style="color: #facc15; font-weight: 600;">
+            等待中
+          </span>
+          <span v-else-if="opponentStatus && (!opponentStatus.isOnline || !opponentStatus.isVisible)" style="color: #ef4444; font-weight: 600;">
+            {{ playerCamp === Camp.RED ? '黑(對手)' : '紅(對手)' }} 離線中
+          </span>
+          <span v-else style="color: #22c55e; font-weight: 600;">
+            {{ playerCamp === Camp.RED ? '黑(對手)' : '紅(對手)' }} 已連線
+          </span>
+        </template>
+        <template v-else>
+          {{ isConnected ? '線上已連線' : '連線中...' }}
+        </template>
       </div>
     </header>
 
@@ -31,7 +51,7 @@
             class="btn btn-secondary mb-1"
             @click="handleResetToMenu"
           >
-            <span class="mobile-text">重選模式</span>
+            重選模式
           </button>
 
           <button
@@ -40,7 +60,7 @@
             @click="handleUndo"
           >
             <span v-if="gameState?.mode === 'PVP' || gameMode === 'PVP'">
-              <span class="mobile-text">禁悔棋</span>
+              禁悔棋
             </span>
             <span v-else-if="isUndoPending">悔棋中...</span>
             <span v-else>悔棋({{ undoCount }})</span>
@@ -282,6 +302,7 @@ const {
   inputRoomId,
   currentRoomInfo,
   alertMessage,
+  opponentStatus,
   isGameOver,
   currentBoard,
   lastMovePair,
@@ -406,6 +427,8 @@ function copyRoomId() {
   transition: color 0.3s;
 }
 .conn-badge.connected { color: #4ade80; }
+.conn-badge.disconnected { color: #ef4444; }
+.conn-badge.waiting { color: #facc15; }
 .conn-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -753,7 +776,6 @@ function copyRoomId() {
 :deep(.mobile-only-toggle) {
   display: none !important;
 }
-.mobile-text { display: none; }
 
 :deep(.history-empty) {
   flex: 1;
