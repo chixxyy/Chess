@@ -40,7 +40,6 @@
             @click="handleUndo"
           >
             <span v-if="gameState?.mode === 'PVP' || gameMode === 'PVP'">
-              <span class="desktop-text">PVP不可悔棋</span>
               <span class="mobile-text">禁悔棋</span>
             </span>
             <span v-else-if="isUndoPending">悔棋中...</span>
@@ -754,6 +753,7 @@ function copyRoomId() {
 :deep(.mobile-only-toggle) {
   display: none !important;
 }
+.mobile-text { display: none; }
 
 :deep(.history-empty) {
   flex: 1;
@@ -809,6 +809,9 @@ function copyRoomId() {
   flex-direction: column;
   gap: 12px;
   width: 100%;
+  max-height: 95%;
+  overflow-y: auto;
+  margin: auto;
 }
 
 .overlay-title {
@@ -1224,6 +1227,13 @@ function copyRoomId() {
 
   :deep(.mobile-only) {
     display: grid !important;
+  }
+
+  .desktop-text {
+    display: none !important;
+  }
+  .mobile-text {
+    display: inline !important;
   }
 
   :deep(.history-title) {
