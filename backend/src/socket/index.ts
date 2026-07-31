@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { SocketEvents, Camp } from '../../../shared/index';
-import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload, CreateRoomPayload, JoinRoomPayload, RoomJoinedPayload } from '../../../shared/index';
+import type { MakeMovePayload, GameUpdatedPayload, GameOverPayload, ErrorPayload, CreateRoomPayload, JoinRoomPayload, RoomJoinedPayload, PlayerStatusPayload } from '../../../shared/index';
 import { gameService } from '../game/GameService';
 import { GameManager } from '../game/GameManager';
 
@@ -120,6 +120,12 @@ export function configureSocket(io: Server) {
 
       // 通知房間對手
       socket.to(roomId).emit(SocketEvents.PLAYER_JOINED, { message: '對手已加入房間，對戰開始！' });
+      io.to(roomId).emit(SocketEvents.PLAYER_STATUS_CHANGED, {
+        gameId: roomId,
+        isOnline: true,
+        isVisible: true,
+        statusText: '已連線'
+      } as PlayerStatusPayload);
       io.to(roomId).emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
     });
 
@@ -178,6 +184,12 @@ export function configureSocket(io: Server) {
 
       if (game) {
         socket.join(targetGameId);
+        io.to(targetGameId).emit(SocketEvents.PLAYER_STATUS_CHANGED, {
+          gameId: targetGameId,
+          isOnline: true,
+          isVisible: true,
+          statusText: '已連線'
+        } as PlayerStatusPayload);
         socket.emit(SocketEvents.GAME_UPDATED, buildUpdate(game));
 
         if (game.status === 'CHECKMATE' && game.winner) {
@@ -192,8 +204,29 @@ export function configureSocket(io: Server) {
       }
     });
 
+    // ── PLAYER_VISIBILITY (跳窗/切分頁狀態) ────────────────
+    socket.on(SocketEvents.PLAYER_VISIBILITY, (data: { gameId: string; isVisible: boolean }) => {
+      if (data?.gameId) {
+        socket.to(data.gameId).emit(SocketEvents.PLAYER_STATUS_CHANGED, {
+          gameId: data.gameId,
+          isOnline: true,
+          isVisible: data.isVisible,
+          statusText: data.isVisible ? '已連線' : '對手離線中...'
+        } as PlayerStatusPayload);
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log(`[socket] disconnected: ${socket.id}`);
+      gameService.handlePlayerDisconnect(socket.id, (gameId, updatedGame) => {
+        io.to(gameId).emit(SocketEvents.PLAYER_STATUS_CHANGED, {
+          gameId,
+          isOnline: false,
+          isVisible: false,
+          statusText: '對手離線中...'
+        } as PlayerStatusPayload);
+        io.to(gameId).emit(SocketEvents.GAME_UPDATED, buildUpdate(updatedGame));
+      });
     });
   });
 }

@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { io, Socket } from 'socket.io-client';
 import { SocketEvents, Camp } from '@chinese-chess/shared';
-import type { GameUpdatedPayload, GameOverPayload, MakeMovePayload, Position, RoomJoinedPayload, ErrorPayload } from '@chinese-chess/shared';
+import type { GameUpdatedPayload, GameOverPayload, MakeMovePayload, Position, RoomJoinedPayload, ErrorPayload, PlayerStatusPayload } from '@chinese-chess/shared';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const socket = io(backendUrl, {
@@ -20,6 +20,7 @@ const moveRejected = ref(0);
 const currentRoomInfo = ref<RoomJoinedPayload | null>(null);
 const roomErrorMsg = ref<string>('');
 const playerJoinedNotice = ref<string>('');
+const opponentStatus = ref<PlayerStatusPayload | null>(null);
 
 socket.on('connect', () => {
   isConnected.value = true;
@@ -69,10 +70,17 @@ socket.on(SocketEvents.GAME_OVER, (payload: GameOverPayload) => {
   gameOver.value = payload;
 });
 
-socket.on(SocketEvents.MOVE_REJECTED, (data?: ErrorPayload) => {
-  moveRejected.value++;
-  if (data?.message) {
-    roomErrorMsg.value = data.message;
+socket.on(SocketEvents.PLAYER_STATUS_CHANGED, (payload: PlayerStatusPayload) => {
+  opponentStatus.value = payload;
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (gameState.value?.gameId && gameState.value?.mode === 'PVP') {
+    const isVisible = document.visibilityState === 'visible';
+    socket.emit(SocketEvents.PLAYER_VISIBILITY, {
+      gameId: gameState.value.gameId,
+      isVisible
+    });
   }
 });
 
@@ -119,6 +127,7 @@ export function useSocket() {
     currentRoomInfo,
     roomErrorMsg,
     playerJoinedNotice,
+    opponentStatus,
     initGame,
     createRoom,
     joinRoom,

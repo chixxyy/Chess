@@ -23,7 +23,9 @@
         </p>
         <p v-else class="player-sub">
           {{ isRed ? '先手' : '後手' }}
-          <span v-if="(gameState?.playersCount ?? 1) >= 2" class="active-tag">· 已連線</span>
+          <span v-if="opponentStatus && (!opponentStatus.isOnline || !opponentStatus.isVisible)" style="color: #ef4444; font-weight: 600;">· {{ opponentStatus.statusText }}</span>
+          <span v-else-if="opponentStatus && opponentStatus.isOnline && opponentStatus.isVisible" style="color: #22c55e; font-weight: 600;">· 已連線</span>
+          <span v-else-if="(gameState?.playersCount ?? 1) >= 2" style="color: #22c55e; font-weight: 600;">· 已連線</span>
           <span v-else style="color: #facc15;">⏳ 等待連線...</span>
         </p>
       </template>
@@ -54,7 +56,7 @@ const props = defineProps<{
   side: 'w' | 'b';
 }>();
 
-const { gameState, playerCamp, gameMode } = useChessStore();
+const { gameState, playerCamp, gameMode, opponentStatus } = useChessStore();
 
 const isRed = computed(() => props.side === 'w');
 const targetCamp = computed(() => isRed.value ? Camp.RED : Camp.BLACK);

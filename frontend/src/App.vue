@@ -66,6 +66,21 @@
           </Transition>
         </Teleport>
 
+        <!-- 重新選擇模式確認彈窗 (防呆機制) -->
+        <Teleport to="body">
+          <Transition name="modal">
+            <div v-if="showResetConfirm" class="confirm-overlay">
+              <div class="confirm-box">
+                <p class="confirm-msg">確定要離開當前對局並重新選擇模式嗎？</p>
+                <div class="confirm-actions">
+                  <button class="btn btn-danger" @click="confirmResetToMenu">確定</button>
+                  <button class="btn btn-secondary" @click="showResetConfirm = false">取消</button>
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </Teleport>
+
         <!-- 通用提示彈窗 -->
         <Teleport to="body">
           <Transition name="modal">
@@ -256,6 +271,7 @@ const {
   undoCount,
   isUndoPending,
   showResignConfirm,
+  showResetConfirm,
   selectedCamp,
   playerCamp,
   gameMode,
@@ -274,6 +290,7 @@ const {
   statusClass,
   handleInitGame,
   handleResetToMenu,
+  confirmResetToMenu,
   handleCreateRoom,
   handleJoinRoom,
   confirmResign,

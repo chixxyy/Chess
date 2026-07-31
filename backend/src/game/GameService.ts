@@ -200,6 +200,28 @@ export class GameService {
       game.stopAi();
     }
   }
+
+  public handlePlayerDisconnect(
+    socketId: string,
+    onDisconnected: (gameId: string, game: GameManager) => void
+  ) {
+    for (const [gameId, game] of this.games.entries()) {
+      if (game.mode === 'PVP') {
+        let changed = false;
+        if (game.players.redSocketId === socketId) {
+          delete game.players.redSocketId;
+          changed = true;
+        }
+        if (game.players.blackSocketId === socketId) {
+          delete game.players.blackSocketId;
+          changed = true;
+        }
+        if (changed) {
+          onDisconnected(gameId, game);
+        }
+      }
+    }
+  }
 }
 
 export const gameService = new GameService();

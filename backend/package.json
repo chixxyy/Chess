@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "../node_modules/.bin/ts-node --project tsconfig.json src/server.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "start": "node dist/backend/src/server.js"
   },
   "dependencies": {
     "@chinese-chess/shared": "file:../shared",

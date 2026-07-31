@@ -16,7 +16,9 @@ export const SocketEvents = {
   MOVE_REJECTED: 'move_rejected',
   GAME_OVER: 'game_over',
   UNDO_MOVE: 'undo_move',
-  RESTORE_GAME: 'restore_game'
+  RESTORE_GAME: 'restore_game',
+  PLAYER_STATUS_CHANGED: 'player_status_changed',
+  PLAYER_VISIBILITY: 'player_visibility'
 } as const;
 
 export interface CreateRoomPayload {
@@ -69,5 +71,12 @@ export interface GameOverPayload {
 
 export interface ErrorPayload {
   message: string;
+}
+
+export interface PlayerStatusPayload {
+  gameId: string;
+  isOnline: boolean;
+  isVisible: boolean;
+  statusText: string;
 }
 

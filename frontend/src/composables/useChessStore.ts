@@ -8,6 +8,7 @@ const isConnected = ref(false);
 const undoCount = ref(3);
 const isUndoPending = ref(false);
 const showResignConfirm = ref(false);
+const showResetConfirm = ref(false);
 const showHistoryModal = ref(false);
 const selectedCamp = ref<Camp>(Camp.RED);
 const alertMessage = ref('');
@@ -27,6 +28,7 @@ export function useChessStore() {
     currentRoomInfo,
     roomErrorMsg,
     playerJoinedNotice,
+    opponentStatus,
     initGame: socketInit,
     createRoom: socketCreateRoom,
     joinRoom: socketJoinRoom,
@@ -181,10 +183,16 @@ export function useChessStore() {
   function handleInitGame() {
     undoCount.value = 3;
     showResignConfirm.value = false;
+    showResetConfirm.value = false;
     socketInit(selectedCamp.value);
   }
 
   function handleResetToMenu() {
+    showResetConfirm.value = true;
+  }
+
+  function confirmResetToMenu() {
+    showResetConfirm.value = false;
     gameState.value = null;
     currentRoomInfo.value = null;
   }
@@ -192,6 +200,7 @@ export function useChessStore() {
   function handleCreateRoom() {
     undoCount.value = 3;
     showResignConfirm.value = false;
+    showResetConfirm.value = false;
     socketCreateRoom(selectedCamp.value);
   }
 
@@ -202,6 +211,7 @@ export function useChessStore() {
     }
     undoCount.value = 3;
     showResignConfirm.value = false;
+    showResetConfirm.value = false;
     socketJoinRoom(inputRoomId.value.trim());
   }
 
@@ -258,6 +268,7 @@ export function useChessStore() {
     undoCount,
     isUndoPending,
     showResignConfirm,
+    showResetConfirm,
     showHistoryModal,
     selectedCamp,
     playerCamp,
@@ -265,6 +276,7 @@ export function useChessStore() {
     inputRoomId,
     currentRoomInfo,
     alertMessage,
+    opponentStatus,
     isGameOver,
     currentBoard,
     lastMovePair,
@@ -281,6 +293,7 @@ export function useChessStore() {
     handleCreateRoom,
     handleJoinRoom,
     confirmResign,
+    confirmResetToMenu,
     handleUndo,
     onPlayerMove
   };
